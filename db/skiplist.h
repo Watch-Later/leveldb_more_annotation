@@ -37,6 +37,10 @@ namespace leveldb {
 
 class Arena;
 
+//Comparator.operator(lh, rh)返回值说明:
+//lh < rh，返回-1
+//lh > rh，返回+1
+//lh = rh，返回0
 template<typename Key, class Comparator>
 class SkipList {
  private:
@@ -116,7 +120,7 @@ class SkipList {
   Random rnd_;
 
   Node* NewNode(const Key& key, int height);
-  int RandomHeight();
+  int RandomHeight();//通过抛硬币的方法(1/4概率)决定高度值,不超过kMaxHeight
   bool Equal(const Key& a, const Key& b) const { return (compare_(a, b) == 0); }
 
   // Return true if key is greater than the data stored in "n"
@@ -265,12 +269,12 @@ typename SkipList<Key,Comparator>::Node* SkipList<Key,Comparator>::FindGreaterOr
   int level = GetMaxHeight() - 1;
   while (true) {
     Node* next = x->Next(level);
-    if (KeyIsAfterNode(key, next)) {
+    if (KeyIsAfterNode(key, next)) {//如果next->key < key
       // Keep searching in this list
       x = next;
-    } else {
-      if (prev != nullptr) prev[level] = x;
-      if (level == 0) {
+    } else {//如果next->key >= key
+      if (prev != nullptr) prev[level] = x;//prev记录该level最后一个<key的节点
+      if (level == 0) {//到达最底层则返回next (next是第一个>=key的节点)
         return next;
       } else {
         // Switch to next list

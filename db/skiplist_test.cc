@@ -4,6 +4,7 @@
 
 #include "db/skiplist.h"
 #include <set>
+#include <iostream>
 #include "leveldb/env.h"
 #include "port/port.h"
 #include "port/thread_annotations.h"
@@ -29,6 +30,21 @@ struct Comparator {
 };
 
 class SkipTest { };
+
+TEST(SkipTest, test) {
+    Arena arena;
+    Comparator cmp;
+    SkipList<Key, Comparator> list(cmp, &arena);
+    std::cout << "GoProgrammer." << std::endl;
+    std::vector<std::string> s;
+    for (Key i = 0; i < 100; ++i) {
+        list.Insert(i);
+    }
+    for (int i = 0; i < 100; ++i) {
+        std::cout << "Contains i:" << i << std::endl;
+        list.Contains(i);
+    }
+}
 
 TEST(SkipTest, Empty) {
   Arena arena;
