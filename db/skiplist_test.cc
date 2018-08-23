@@ -31,17 +31,28 @@ struct Comparator {
 
 class SkipTest { };
 
-TEST(SkipTest, test) {
+TEST(SkipTest, graphviz) {
     Arena arena;
     Comparator cmp;
     SkipList<Key, Comparator> list(cmp, &arena);
     std::cout << "GoProgrammer." << std::endl;
     std::vector<std::string> s;
+    for (Key i = 0; i < 32; ++i) {
+        list.Insert(i);
+    }
+
+    list.dump();
+}
+
+TEST(SkipTest, test) {
+    Arena arena;
+    Comparator cmp;
+    SkipList<Key, Comparator> list(cmp, &arena);
+    std::vector<std::string> s;
     for (Key i = 0; i < 100; ++i) {
         list.Insert(i);
     }
     for (int i = 0; i < 100; ++i) {
-        std::cout << "Contains i:" << i << std::endl;
         list.Contains(i);
     }
 }

@@ -306,7 +306,7 @@ SkipList<Key,Comparator>::FindLessThan(const Key& key) const {
   while (true) {
     assert(x == head_ || compare_(x->key, key) < 0);
     Node* next = x->Next(level);
-    if (next == nullptr || compare_(next->key, key) >= 0) {//如果key > next->key
+    if (next == nullptr || compare_(next->key, key) >= 0) {//如果key >= next->key
       if (level == 0) {
         return x;
       } else {
@@ -326,14 +326,16 @@ typename SkipList<Key,Comparator>::Node* SkipList<Key,Comparator>::FindLast()
   int level = GetMaxHeight() - 1;
   while (true) {
     Node* next = x->Next(level);
-    if (next == nullptr) {
-      if (level == 0) {
+    if (next == nullptr) {//到达最后一个节点
+      if (level == 0) {//level=0，则返回
         return x;
       } else {
         // Switch to next list
+        // level>0则到下一层
         level--;
       }
     } else {
+        //不是最后一个节点则继续递增
       x = next;
     }
   }

@@ -89,17 +89,27 @@ void MemTable::Add(SequenceNumber s, ValueType type,
   //  value bytes  : char[value.size()]
   size_t key_size = key.size();
   size_t val_size = value.size();
+  //InternalKey长度 = UserKey长度 + 8(存储SequenceNumber + ValueType)
   size_t internal_key_size = key_size + 8;
+  //数据总长度=前面4段数据的长度之和
   const size_t encoded_len =
       VarintLength(internal_key_size) + internal_key_size +
       VarintLength(val_size) + val_size;
   char* buf = arena_.Allocate(encoded_len);
+  //append key_size
   char* p = EncodeVarint32(buf, internal_key_size);
+  //append key bytes
   memcpy(p, key.data(), key_size);
   p += key_size;
+  //append sequence_number && type
+  //64bits = 8bytes，前7个bytes存储s，最后一个bytes存储type.
+  //这里8bytes对应前面 internal_key_size = key_size + 8
+  //也是Fixed64而不是Varint64的原因
   EncodeFixed64(p, (s << 8) | type);
   p += 8;
+  //append value_size
   p = EncodeVarint32(p, val_size);
+  //append value bytes
   memcpy(p, value.data(), val_size);
   assert(p + val_size == buf + encoded_len);
   table_.Insert(buf);
