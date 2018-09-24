@@ -52,8 +52,11 @@ int InternalKeyComparator::Compare(const Slice& akey, const Slice& bkey) const {
   //    increasing user key (according to user-supplied comparator)
   //    decreasing sequence number
   //    decreasing type (though sequence# should be enough to disambiguate)
+  //    首先比较userkey，即用户写入的key
   int r = user_comparator_->Compare(ExtractUserKey(akey), ExtractUserKey(bkey));
+  // 如果是同一个userkey，继续判断tag是否相等
   if (r == 0) {
+    //sequence越大，排序结果越小
     const uint64_t anum = DecodeFixed64(akey.data() + akey.size() - 8);
     const uint64_t bnum = DecodeFixed64(bkey.data() + bkey.size() - 8);
     if (anum > bnum) {
@@ -120,6 +123,7 @@ bool InternalFilterPolicy::KeyMayMatch(const Slice& key, const Slice& f) const {
 
 LookupKey::LookupKey(const Slice& user_key, SequenceNumber s) {
   size_t usize = user_key.size();
+  //SequenceNumber + ValueType占8个字节，encode(internal_key_size)至多占5个字节，因此预估至多+13个字节
   size_t needed = usize + 13;  // A conservative estimate
   char* dst;
   if (needed <= sizeof(space_)) {
@@ -127,13 +131,17 @@ LookupKey::LookupKey(const Slice& user_key, SequenceNumber s) {
   } else {
     dst = new char[needed];
   }
+  //start_指向最开始位置
   start_ = dst;
+  //memtable的internal_key_size=usize+8，对应MemTable::Add实现。
   dst = EncodeVarint32(dst, usize + 8);
+  //kstart_指向userkey开始位置
   kstart_ = dst;
   memcpy(dst, user_key.data(), usize);
   dst += usize;
   EncodeFixed64(dst, PackSequenceAndType(s, kValueTypeForSeek));
   dst += 8;
+  //end_指向(s << 8 | type)的下一个字节
   end_ = dst;
 }
 

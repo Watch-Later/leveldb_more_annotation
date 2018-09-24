@@ -61,6 +61,7 @@ class LEVELDB_EXPORT WriteBatch {
     virtual void Put(const Slice& key, const Slice& value) = 0;
     virtual void Delete(const Slice& key) = 0;
   };
+  //遍历rep_，调用handler的Put/Delete接口写入数据
   Status Iterate(Handler* handler) const;
 
  private:

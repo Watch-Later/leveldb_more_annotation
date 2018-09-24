@@ -1208,9 +1208,13 @@ Status DBImpl::Write(const WriteOptions& options, WriteBatch* my_batch) {
 
   MutexLock l(&mutex_);
   writers_.push_back(&w);
+  //数据先放到queue里，如果不在queue顶部则等待
+  //这里是对数据流的一个优化，wirters_里Writer写入时，可能会把queue里其他Writer也完成写入
   while (!w.done && &w != writers_.front()) {
     w.cv.Wait();
   }
+  //如果已经完成了写入(by其他Writer)，则直接返回
+  //w.status也已经设置？
   if (w.done) {
     return w.status;
   }
@@ -1275,6 +1279,8 @@ Status DBImpl::Write(const WriteOptions& options, WriteBatch* my_batch) {
 
 // REQUIRES: Writer list must be non-empty
 // REQUIRES: First writer must have a non-null batch
+// 合并writers_里多个Writer到tmp_batch_，last_writer记录最后一个被合并的Write
+// 返回tmp_batch_
 WriteBatch* DBImpl::BuildBatchGroup(Writer** last_writer) {
   mutex_.AssertHeld();
   assert(!writers_.empty());
@@ -1287,14 +1293,15 @@ WriteBatch* DBImpl::BuildBatchGroup(Writer** last_writer) {
   // Allow the group to grow up to a maximum size, but if the
   // original write is small, limit the growth so we do not slow
   // down the small write too much.
-  size_t max_size = 1 << 20;
-  if (size <= (128<<10)) {
+  size_t max_size = 1 << 20;//1M
+  if (size <= (128<<10)) {//128K
     max_size = size + (128<<10);
   }
 
   *last_writer = first;
   std::deque<Writer*>::iterator iter = writers_.begin();
   ++iter;  // Advance past "first"
+  //wirters_是一个队列，后面的Writer一定还没有写入？
   for (; iter != writers_.end(); ++iter) {
     Writer* w = *iter;
     if (w->sync && !first->sync) {
@@ -1359,6 +1366,8 @@ Status DBImpl::MakeRoomForWrite(bool force) {
       background_work_finished_signal_.Wait();
     } else if (versions_->NumLevelFiles(0) >= config::kL0_StopWritesTrigger) {
       // There are too many level-0 files.
+      // level-0文件个数>=kL0_StopWritesTrigger，则停止写入等待
+      // 等待啥？
       Log(options_.info_log, "Too many L0 files; waiting...\n");
       background_work_finished_signal_.Wait();
     } else {
@@ -1485,6 +1494,7 @@ void DBImpl::GetApproximateSizes(
 // can call if they wish
 Status DB::Put(const WriteOptions& opt, const Slice& key, const Slice& value) {
   WriteBatch batch;
+  //key,value数据更新到batch里
   batch.Put(key, value);
   return Write(opt, &batch);
 }
@@ -1502,6 +1512,7 @@ Status DB::Open(const Options& options, const std::string& dbname,
   *dbptr = nullptr;
 
   DBImpl* impl = new DBImpl(options, dbname);
+  //刚new出来，外界还看不到这个变量，为啥要加锁？
   impl->mutex_.Lock();
   VersionEdit edit;
   // Recover handles create_if_missing, error_if_exists

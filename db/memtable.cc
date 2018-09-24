@@ -11,10 +11,15 @@
 
 namespace leveldb {
 
+//data由两部分组成：|encode(value_size)  |value  |
+//解析长度后，返回value
 static Slice GetLengthPrefixedSlice(const char* data) {
   uint32_t len;
   const char* p = data;
+  //解析internal_key的长度
+  //5: varint32编码后int最多占5个bytes
   p = GetVarint32Ptr(p, p + 5, &len);  // +5: we assume "p" is not corrupted
+  //返回internal_key
   return Slice(p, len);
 }
 
@@ -33,6 +38,7 @@ size_t MemTable::ApproximateMemoryUsage() { return arena_.MemoryUsage(); }
 int MemTable::KeyComparator::operator()(const char* aptr, const char* bptr)
     const {
   // Internal keys are encoded as length-prefixed strings.
+  // 分别获取internal_key并比较
   Slice a = GetLengthPrefixedSlice(aptr);
   Slice b = GetLengthPrefixedSlice(bptr);
   return comparator.Compare(a, b);
@@ -89,9 +95,12 @@ void MemTable::Add(SequenceNumber s, ValueType type,
   //  value bytes  : char[value.size()]
   size_t key_size = key.size();
   size_t val_size = value.size();
-  //InternalKey长度 = UserKey长度 + 8(存储SequenceNumber + ValueType)
+  //InternalKey长度 = UserKey长度 + 8bytes(存储SequenceNumber + ValueType)
   size_t internal_key_size = key_size + 8;
-  //数据总长度=前面4段数据的长度之和
+  //用户写入的key value在内部实现里增加了sequence type
+  //而到了MemTable实际按照以下格式组成一段buffer
+  //|encode(internal_key_size)  |key  |sequence  type  |encode(value_size)  |value  |
+  //这里先计算大小，申请对应大小的buffer
   const size_t encoded_len =
       VarintLength(internal_key_size) + internal_key_size +
       VarintLength(val_size) + val_size;
@@ -112,6 +121,7 @@ void MemTable::Add(SequenceNumber s, ValueType type,
   //append value bytes
   memcpy(p, value.data(), val_size);
   assert(p + val_size == buf + encoded_len);
+  //写入table_的buffer包含了key/value及附属信息
   table_.Insert(buf);
 }
 
@@ -131,12 +141,18 @@ bool MemTable::Get(const LookupKey& key, std::string* value, Status* s) {
     // all entries with overly large sequence numbers.
     const char* entry = iter.key();
     uint32_t key_length;
+    //解析出internal_key的长度存储到key_length
+    //key_ptr指向internal_key
     const char* key_ptr = GetVarint32Ptr(entry, entry+5, &key_length);
+    //Seek返回的是第一个>=key的Node(>= <=> InternalKeyComparator::Compare)
+    //因此先判断下userkey是否相等
     if (comparator_.comparator.user_comparator()->Compare(
             Slice(key_ptr, key_length - 8),
             key.user_key()) == 0) {
       // Correct user key
+      // tag = (s << 8) | type
       const uint64_t tag = DecodeFixed64(key_ptr + key_length - 8);
+      //type存储在最后一个字节
       switch (static_cast<ValueType>(tag & 0xff)) {
         case kTypeValue: {
           Slice v = GetLengthPrefixedSlice(key_ptr + key_length);

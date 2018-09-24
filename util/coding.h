@@ -25,10 +25,15 @@ void PutFixed32(std::string* dst, uint32_t value);
 void PutFixed64(std::string* dst, uint64_t value);
 void PutVarint32(std::string* dst, uint32_t value);
 void PutVarint64(std::string* dst, uint64_t value);
+//一次写入value长度(encode)、value
+//|varint32(value.size())  |value.data()  |
 void PutLengthPrefixedSlice(std::string* dst, const Slice& value);
 
 // Standard Get... routines parse a value from the beginning of a Slice
 // and advance the slice past the parsed value.
+// 从input首字节解码varint编码后的整数值，存储到value.
+// 修改input指向剩余字符串，即input += len(varint)
+// 注：input参数同时起到[in | out]的作用
 bool GetVarint32(Slice* input, uint32_t* value);
 bool GetVarint64(Slice* input, uint64_t* value);
 bool GetLengthPrefixedSlice(Slice* input, Slice* result);
@@ -51,6 +56,7 @@ void EncodeFixed64(char* dst, uint64_t value);
 // Lower-level versions of Put... that write directly into a character buffer
 // and return a pointer just past the last byte written.
 // REQUIRES: dst has enough space for the value being written
+// 将value encode后的值写入dst，并返回写入的位置+1，也就是encode后的长度为res - dst
 char* EncodeVarint32(char* dst, uint32_t value);
 char* EncodeVarint64(char* dst, uint64_t value);
 
@@ -85,6 +91,9 @@ inline uint64_t DecodeFixed64(const char* ptr) {
 }
 
 // Internal routine for use by fallback path of GetVarint32Ptr
+// 对内存buffer按照varint解码，解码后的整数存储到value
+// 内存buffer从p开始，最大不超过limit
+// 返回已经解析的buffer的下一个字节，即p + len(varint编码)
 const char* GetVarint32PtrFallback(const char* p,
                                    const char* limit,
                                    uint32_t* value);
@@ -93,6 +102,7 @@ inline const char* GetVarint32Ptr(const char* p,
                                   uint32_t* value) {
   if (p < limit) {
     uint32_t result = *(reinterpret_cast<const unsigned char*>(p));
+    //对小整数的优化，只有原整数<128，编码后的result才满足result&128 == 0
     if ((result & 128) == 0) {
       *value = result;
       return p + 1;

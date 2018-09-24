@@ -24,6 +24,7 @@
 namespace leveldb {
 
 // WriteBatch header has an 8-byte sequence number followed by a 4-byte count.
+// kHeader包括两部分：|8bytes的sequence number  |4bytes的count  |
 static const size_t kHeader = 12;
 
 WriteBatch::WriteBatch() {
@@ -58,6 +59,7 @@ Status WriteBatch::Iterate(Handler* handler) const {
     input.remove_prefix(1);
     switch (tag) {
       case kTypeValue:
+        //分别解析出key, value
         if (GetLengthPrefixedSlice(&input, &key) &&
             GetLengthPrefixedSlice(&input, &value)) {
           handler->Put(key, value);
@@ -100,8 +102,12 @@ void WriteBatchInternal::SetSequence(WriteBatch* b, SequenceNumber seq) {
 }
 
 void WriteBatch::Put(const Slice& key, const Slice& value) {
+  //更新[rep_.data() + 8, rep_.data() + 12)内存位置
   WriteBatchInternal::SetCount(this, WriteBatchInternal::Count(this) + 1);
+  //先写入1个字节的类型kTypeValue=0x1
   rep_.push_back(static_cast<char>(kTypeValue));
+  //分别写入key及value
+  //|encode(key.size())  |key.data()  |encode(value.size())  |value.data()  |
   PutLengthPrefixedSlice(&rep_, key);
   PutLengthPrefixedSlice(&rep_, value);
 }
@@ -143,8 +149,10 @@ void WriteBatchInternal::SetContents(WriteBatch* b, const Slice& contents) {
 }
 
 void WriteBatchInternal::Append(WriteBatch* dst, const WriteBatch* src) {
+  //合并src记录数到dst记录数
   SetCount(dst, Count(dst) + Count(src));
   assert(src->rep_.size() >= kHeader);
+  //只需要Copy src的数据部分
   dst->rep_.append(src->rep_.data() + kHeader, src->rep_.size() - kHeader);
 }
 

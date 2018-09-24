@@ -47,7 +47,7 @@ void PutFixed64(std::string* dst, uint64_t value) {
 char* EncodeVarint32(char* dst, uint32_t v) {
   // Operate on characters as unsigneds
   unsigned char* ptr = reinterpret_cast<unsigned char*>(dst);
-  static const int B = 128;
+  static const int B = 128;//0x80
   if (v < (1<<7)) {
     *(ptr++) = v;
   } else if (v < (1<<14)) {
@@ -75,6 +75,7 @@ char* EncodeVarint32(char* dst, uint32_t v) {
 void PutVarint32(std::string* dst, uint32_t v) {
   char buf[5];
   char* ptr = EncodeVarint32(buf, v);
+  //写入encode后的值(大小为ptr - buf)
   dst->append(buf, ptr - buf);
 }
 
@@ -96,7 +97,9 @@ void PutVarint64(std::string* dst, uint64_t v) {
 }
 
 void PutLengthPrefixedSlice(std::string* dst, const Slice& value) {
+  //首先写入encode后的value大小
   PutVarint32(dst, value.size());
+  //其次写入data数据
   dst->append(value.data(), value.size());
 }
 
@@ -131,10 +134,12 @@ const char* GetVarint32PtrFallback(const char* p,
 bool GetVarint32(Slice* input, uint32_t* value) {
   const char* p = input->data();
   const char* limit = p + input->size();
+  //encode后的值存储到value，返回剩余的字符串
   const char* q = GetVarint32Ptr(p, limit, value);
   if (q == nullptr) {
     return false;
   } else {
+    //修改input，存储剩余的字符串
     *input = Slice(q, limit - q);
     return true;
   }
@@ -181,9 +186,12 @@ const char* GetLengthPrefixedSlice(const char* p, const char* limit,
 
 bool GetLengthPrefixedSlice(Slice* input, Slice* result) {
   uint32_t len;
+  //从input先解析出字符串长度
   if (GetVarint32(input, &len) &&
       input->size() >= len) {
+    //再从input解析出字符串，记录到result
     *result = Slice(input->data(), len);
+    //调整input跳过已经解析的字符串
     input->remove_prefix(len);
     return true;
   } else {

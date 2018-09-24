@@ -64,6 +64,7 @@ typedef uint64_t SequenceNumber;
 
 // We leave eight bits empty at the bottom so a type and sequence#
 // can be packed together into 64-bits.
+// SequenceNumber 最多使用 7bytes存储
 static const SequenceNumber kMaxSequenceNumber =
     ((0x1ull << 56) - 1);
 
@@ -72,6 +73,7 @@ struct ParsedInternalKey {
   SequenceNumber sequence;
   ValueType type;
 
+  //为了高性能，特意没有初始化(还能这么操作？)
   ParsedInternalKey() { }  // Intentionally left uninitialized (for speed)
   ParsedInternalKey(const Slice& u, const SequenceNumber& seq, ValueType t)
       : user_key(u), sequence(seq), type(t) { }
@@ -93,6 +95,7 @@ void AppendInternalKey(std::string* result, const ParsedInternalKey& key);
 bool ParseInternalKey(const Slice& internal_key, ParsedInternalKey* result);
 
 // Returns the user key portion of an internal key.
+// 从internal_key提取出user_key
 inline Slice ExtractUserKey(const Slice& internal_key) {
   assert(internal_key.size() >= 8);
   return Slice(internal_key.data(), internal_key.size() - 8);
@@ -106,6 +109,9 @@ class InternalKeyComparator : public Comparator {
  public:
   explicit InternalKeyComparator(const Comparator* c) : user_comparator_(c) { }
   virtual const char* Name() const;
+  //从slice里解析出userkey，与8字节的tag:(sequence << 8) | type
+  //userkey按照字母序比较
+  //如果userkey相同，则tag按大小逆序比较，即sequence越大越靠前
   virtual int Compare(const Slice& a, const Slice& b) const;
   virtual void FindShortestSeparator(
       std::string* start,
@@ -204,6 +210,7 @@ class LookupKey {
   const char* start_;
   const char* kstart_;
   const char* end_;
+  //为了避免内存碎片 or 提高性能？
   char space_[200];      // Avoid allocation for short keys
 
   // No copying allowed
