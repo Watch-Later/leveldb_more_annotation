@@ -5,5 +5,11 @@ build_config.mk
 *.so
 *.so.*
 *_test$
+*.un~
 db_bench
 leveldbutil
+build
+cscope.files
+cscope.out
+tags
+my_test/*test
