@@ -1,19 +1,3 @@
-/***************************************************************************
- * 
- * Copyright (c) 2018 Baidu.com, Inc. All Rights Reserved
- * $Id$ 
- * 
- **************************************************************************/
- 
- /**
- * @file my_test/log_writer_test.cpp
- * @author zhangying21(zhangying21@baidu.com)
- * @date 2018/09/06 20:21:23
- * @version $Revision$ 
- * @brief 
- *  
- **/
-
 #include <iostream>
 #include "db/log_writer.h"
 #include "leveldb/env.h"

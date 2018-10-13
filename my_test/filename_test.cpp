@@ -1,19 +1,3 @@
-/***************************************************************************
- * 
- * Copyright (c) 2018 Baidu.com, Inc. All Rights Reserved
- * $Id$ 
- * 
- **************************************************************************/
- 
- /**
- * @file my_test/filename_test.cpp
- * @author zhangying21(zhangying21@baidu.com)
- * @date 2018/09/09 16:44:14
- * @version $Revision$ 
- * @brief 
- *  
- **/
-
 #include <iostream>
 #include "db/filename.h"
 

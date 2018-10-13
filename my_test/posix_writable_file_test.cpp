@@ -1,19 +1,3 @@
-/***************************************************************************
- * 
- * Copyright (c) 2018 Baidu.com, Inc. All Rights Reserved
- * $Id$ 
- * 
- **************************************************************************/
- 
- /**
- * @file posix_writable_file_test.cpp
- * @author zhangying21(zhangying21@baidu.com)
- * @date 
- * @version $Revision$ 
- * @brief 
- *  
- **/
-
 #include <iostream>
 #include "leveldb/env.h"
 

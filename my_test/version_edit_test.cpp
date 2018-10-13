@@ -1,19 +1,3 @@
-/***************************************************************************
- * 
- * Copyright (c) 2018 Baidu.com, Inc. All Rights Reserved
- * $Id$ 
- * 
- **************************************************************************/
- 
- /**
- * @file my_test/version_edit_test.cpp
- * @author zhangying21(zhangying21@baidu.com)
- * @date 2018/08/06 20:55:55
- * @version $Revision$ 
- * @brief 
- *  
- **/
-
 #include <assert.h>
 #include <string>
 #include <iostream>

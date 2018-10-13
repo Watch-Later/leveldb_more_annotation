@@ -6,6 +6,7 @@ build_config.mk
 *.so.*
 *_test$
 *.un~
+.*.swp
 db_bench
 leveldbutil
 build

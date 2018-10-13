@@ -1,19 +1,3 @@
-/***************************************************************************
- * 
- * Copyright (c) 2018 Baidu.com, Inc. All Rights Reserved
- * $Id$ 
- * 
- **************************************************************************/
- 
- /**
- * @file my_test/version_set_test.cpp
- * @author zhangying21(zhangying21@baidu.com)
- * @date 2018/08/18 22:38:48
- * @version $Revision$ 
- * @brief 
- *  
- **/
-
 #include <iostream>
 #include "leveldb/db.h"
 #include "db/version_set.h"

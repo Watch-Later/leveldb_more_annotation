@@ -1,19 +1,3 @@
-/***************************************************************************
- * 
- * Copyright (c) 2018 Baidu.com, Inc. All Rights Reserved
- * $Id$ 
- * 
- **************************************************************************/
- 
- /**
- * @file sample.cpp
- * @author zhangying21(zhangying21@baidu.com)
- * @date 2018/08/05 14:00:53
- * @version $Revision$ 
- * @brief 
- *  
- **/
-
 #include <assert.h>
 #include <iostream>
 #include "leveldb/db.h"

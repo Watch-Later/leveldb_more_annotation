@@ -33,6 +33,7 @@ Writer::Writer(WritableFile* dest, uint64_t dest_length)
 Writer::~Writer() {
 }
 
+//slice数据写入底层文件，可能会分多次写入
 Status Writer::AddRecord(const Slice& slice) {
   const char* ptr = slice.data();
   size_t left = slice.size();
@@ -52,13 +53,16 @@ Status Writer::AddRecord(const Slice& slice) {
       if (leftover > 0) {
         // Fill the trailer (literal below relies on kHeaderSize being 7)
         assert(kHeaderSize == 7);
-        //leftover大小为[1, 6]，这里会根据写入leftover个\x00
+        //Slice构造函数第二个参数表示字符串长度，因此效果上是leftover个'\x00'
+        //leftover size最大为6，因此第一个参数指定6个'\x00'
         dest_->Append(Slice("\x00\x00\x00\x00\x00\x00", leftover));
       }
       block_offset_ = 0;
     }
 
     // Invariant: we never leave < kHeaderSize bytes in a block.
+    // block还有剩余可用空间让我们写入一部分数据
+    // 如果 = 0，也就是剩余只能写入header，那也写入（只是此时不会写入slice里任何数据）
     assert(kBlockSize - block_offset_ - kHeaderSize >= 0);
 
     //可用大小为kBlockSize - block_offset_，减去header大小即为可写的数据大小
@@ -79,13 +83,16 @@ Status Writer::AddRecord(const Slice& slice) {
     }
 
     s = EmitPhysicalRecord(type, ptr, fragment_length);
-    ptr += fragment_length;
-    left -= fragment_length;
+    ptr += fragment_length;//下一次slice待写入位置
+    left -= fragment_length;//slice还有多少没有写
     begin = false;
   } while (s.ok() && left > 0);
   return s;
 }
 
+//写入header data到底层文件(调用flush确保写入)
+//|crc(4B)  |length(2B)  |type(1B)  |ptr(nB)...  |
+//|--------------header-------------|----data----|
 Status Writer::EmitPhysicalRecord(RecordType t, const char* ptr, size_t n) {
   //assert这里对应n要使用buf[4, 5]存储，一共两个字节，因此大小应当<=0xffff
   assert(n <= 0xffff);  // Must fit in two bytes
@@ -101,6 +108,7 @@ Status Writer::EmitPhysicalRecord(RecordType t, const char* ptr, size_t n) {
   //buf[6]存储类型
   buf[6] = static_cast<char>(t);
 
+  //计算crc: Extend(type_crc, ptr) -> Mask -> EncodeFixed32
   // Compute the crc of the record type and the payload.
   uint32_t crc = crc32c::Extend(type_crc_[t], ptr, n);
   crc = crc32c::Mask(crc);                 // Adjust for storage

@@ -15,6 +15,7 @@ namespace leveldb {
 Status WriteStringToFileSync(Env* env, const Slice& data,
                              const std::string& fname);
 
+//返回形如"$dbname/$number.$suffix"的文件名，其中number使用6位数字输出，不足则左边补0，例如sample.db/000006.log
 static std::string MakeFileName(const std::string& dbname, uint64_t number,
                                 const char* suffix) {
   char buf[100];
@@ -77,6 +78,9 @@ std::string OldInfoLogFileName(const std::string& dbname) {
 //    dbname/LOG.old
 //    dbname/MANIFEST-[0-9]+
 //    dbname/[0-9]+.(log|sst|ldb)
+//    通过传入的文件名解析出number及文件类型
+//    例如filename=MANIFEST-000002 => number = 2, type = kDescriptorFile
+//    成功解析出number && type 则return true，否则false
 bool ParseFileName(const std::string& filename,
                    uint64_t* number,
                    FileType* type) {

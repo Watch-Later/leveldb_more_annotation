@@ -44,7 +44,7 @@ static int mmap_limit = -1;
 static const size_t kBufSize = 65536;
 
 static Status PosixError(const std::string& context, int err_number) {
-  if (err_number == ENOENT) {
+  if (err_number == ENOENT) {//ENOENT:No such file or directory
     return Status::NotFound(context, strerror(err_number));
   } else {
     return Status::IOError(context, strerror(err_number));
@@ -111,6 +111,8 @@ class PosixSequentialFile: public SequentialFile {
       : filename_(fname), fd_(fd) {}
   virtual ~PosixSequentialFile() { close(fd_); }
 
+  //从fd_读取至多n bytes到scratch，实际读取数据可能<n
+  //读取到的buffer存储到 result，返回是否读取成功
   virtual Status Read(size_t n, Slice* result, char* scratch) {
     Status s;
     while (true) {
@@ -128,6 +130,7 @@ class PosixSequentialFile: public SequentialFile {
     return s;
   }
 
+  //从当前读取位置前进n bytes
   virtual Status Skip(uint64_t n) {
     if (lseek(fd_, n, SEEK_CUR) == static_cast<off_t>(-1)) {
       return PosixError(filename_, errno);
@@ -224,9 +227,9 @@ class PosixMmapReadableFile: public RandomAccessFile {
 class PosixWritableFile : public WritableFile {
  private:
   // buf_[0, pos_-1] contains data to be written to fd_.
-  std::string filename_;
-  int fd_;
-  char buf_[kBufSize];
+  std::string filename_;//打开的文件名
+  int fd_;//打开的文件fd(为什么从外部传递，不是该类负责打开文件？)
+  char buf_[kBufSize];//65536 byts
   size_t pos_;
 
  public:
@@ -261,14 +264,17 @@ class PosixWritableFile : public WritableFile {
     }
 
     // Small writes go to buffer, large writes are written directly.
+    // 数据量比较小(<kBufSize), cp到内存buf_则返回
     if (n < kBufSize) {
       memcpy(buf_, p, n);
       pos_ = n;
       return Status::OK();
     }
+    // 数据量比较大(>=kBufSize), 不经过内存buf_直接写文件
     return WriteRaw(p, n);
   }
 
+  //内存buf_落盘，并关闭文件句柄
   virtual Status Close() {
     Status result = FlushBuffered();
     const int r = close(fd_);
@@ -279,6 +285,7 @@ class PosixWritableFile : public WritableFile {
     return result;
   }
 
+  //内存buf_落盘
   virtual Status Flush() {
     return FlushBuffered();
   }
@@ -310,6 +317,7 @@ class PosixWritableFile : public WritableFile {
     return s;
   }
 
+  //看一些文件系统的API设计，sync语义一般都包含了flush
   virtual Status Sync() {
     // Ensure new files referred to by the manifest are in the filesystem.
     Status s = SyncDirIfManifest();
@@ -326,16 +334,21 @@ class PosixWritableFile : public WritableFile {
   }
 
  private:
+  //调用WriteRaw将buffer内数据全部落盘
+  //无论写入结果如何，都"清空"buffer
   Status FlushBuffered() {
     Status s = WriteRaw(buf_, pos_);
     pos_ = 0;
     return s;
   }
 
+  //写入指定的内存区间到文件里，区间通过参数指定：[p, p + n)
   Status WriteRaw(const char* p, size_t n) {
     while (n > 0) {
       ssize_t r = write(fd_, p, n);
       if (r < 0) {
+        //EINTR重试，否则返回失败
+        //Under SVr4 a write may be interrupted and return EINTR at any point, not just before any data is written.
         if (errno == EINTR) {
           continue;  // Retry
         }
@@ -344,6 +357,7 @@ class PosixWritableFile : public WritableFile {
       p += r;
       n -= r;
     }
+    //完全写入返回OK.
     return Status::OK();
   }
 };
@@ -392,6 +406,8 @@ class PosixEnv : public Env {
     abort();
   }
 
+  //只读方式打开文件fname，通过SequentialFile读取文件内容，*result指向该对象
+  //对象析构时close文件句柄
   virtual Status NewSequentialFile(const std::string& fname,
                                    SequentialFile** result) {
     int fd = open(fname.c_str(), O_RDONLY);

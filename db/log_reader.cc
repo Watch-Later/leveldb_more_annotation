@@ -20,7 +20,7 @@ Reader::Reader(SequentialFile* file, Reporter* reporter, bool checksum,
     : file_(file),
       reporter_(reporter),
       checksum_(checksum),
-      backing_store_(new char[kBlockSize]),
+      backing_store_(new char[kBlockSize]),//存储读取数据
       buffer_(),
       eof_(false),
       last_record_offset_(0),
@@ -34,10 +34,13 @@ Reader::~Reader() {
 }
 
 bool Reader::SkipToInitialBlock() {
+  //相对于所在block起始位置的偏移量
   const size_t offset_in_block = initial_offset_ % kBlockSize;
+  //所在block相对起始处的偏移量
   uint64_t block_start_location = initial_offset_ - offset_in_block;
 
   // Don't search a block if we'd be in the trailer
+  // 如果到了尾部(不足7 bytes)，则记录为下个block起始偏移量
   if (offset_in_block > kBlockSize - 6) {
     block_start_location += kBlockSize;
   }
@@ -220,10 +223,13 @@ unsigned int Reader::ReadPhysicalRecord(Slice* result) {
 
     // Parse the header
     const char* header = buffer_.data();
+    //header[4]存储length低两位，header[5]存储length高两位
     const uint32_t a = static_cast<uint32_t>(header[4]) & 0xff;
     const uint32_t b = static_cast<uint32_t>(header[5]) & 0xff;
+    //header[6]存储了type
     const unsigned int type = header[6];
     const uint32_t length = a | (b << 8);
+    //根据写入规则，该block一定存储了完整的fragment，否则说明文件错误
     if (kHeaderSize + length > buffer_.size()) {
       size_t drop_size = buffer_.size();
       buffer_.clear();
@@ -237,6 +243,7 @@ unsigned int Reader::ReadPhysicalRecord(Slice* result) {
       return kEof;
     }
 
+    //没有看到哪里写kZeroType这个类型,mmap?
     if (type == kZeroType && length == 0) {
       // Skip zero length record without reporting any drops since
       // such records are produced by the mmap based writing code in
@@ -247,6 +254,9 @@ unsigned int Reader::ReadPhysicalRecord(Slice* result) {
 
     // Check crc
     if (checksum_) {
+      //与计算crc过程相反: Extend(type_crc, ptr) -> Mask -> EncodeFixed32
+      //反解crc过程: DecodeFixed32 -> Unmask
+      //因为DecodeFixed32固定取4个字节，所以直接传入header，不需要指定长度
       uint32_t expected_crc = crc32c::Unmask(DecodeFixed32(header));
       uint32_t actual_crc = crc32c::Value(header + 6, 1 + length);
       if (actual_crc != expected_crc) {

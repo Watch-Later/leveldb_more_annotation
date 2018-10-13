@@ -27,7 +27,7 @@ static const int kMaxRecordType = kLastType;
 static const int kBlockSize = 32768;//32k
 
 // Header is checksum (4 bytes), length (2 bytes), type (1 byte).
-// length最大为kBlockSize=0x8000 - kHeaderSize，因此使用2个字节保存足够
+// 其中length最大为kBlockSize=0x8000 - kHeaderSize，因此只使用2个字节存储
 static const int kHeaderSize = 4 + 2 + 1;
 
 }  // namespace log
