@@ -29,6 +29,7 @@ namespace leveldb {
 
 class Slice;
 
+//WriteBatch负责合并多次Write操作(Put or Delete)
 class LEVELDB_EXPORT WriteBatch {
  public:
   WriteBatch();
@@ -67,6 +68,8 @@ class LEVELDB_EXPORT WriteBatch {
  private:
   friend class WriteBatchInternal;
 
+  //rep_存储了所有Put/Delete接口传入的数据
+  //按照一定格式记录了:sequence, count, 操作类型(Put or Delete)，key/value的长度及key/value本身
   std::string rep_;  // See comment in write_batch.cc for the format of rep_
 };
 

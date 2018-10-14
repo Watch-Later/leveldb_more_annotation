@@ -20,11 +20,11 @@ Reader::Reader(SequentialFile* file, Reporter* reporter, bool checksum,
     : file_(file),
       reporter_(reporter),
       checksum_(checksum),
-      backing_store_(new char[kBlockSize]),//存储读取数据
+      backing_store_(new char[kBlockSize]),//存储读取数据，每次都尝试读取至多kBlockSize bytes缓存到内存，避免频繁读取小数据
       buffer_(),
-      eof_(false),
-      last_record_offset_(0),
-      end_of_buffer_offset_(0),
+      eof_(false),//end of file.
+      last_record_offset_(0),//当前解析到的record的在文件的起始位置
+      end_of_buffer_offset_(0),//已经读到的文件最大offset
       initial_offset_(initial_offset),
       resyncing_(initial_offset > 0) {
 }
@@ -80,6 +80,7 @@ bool Reader::ReadRecord(Slice* record, std::string* scratch) {
     // ReadPhysicalRecord may have only had an empty trailer remaining in its
     // internal buffer. Calculate the offset of the next physical record now
     // that it has returned, properly accounting for its header size.
+    // ReadPhysicalRecord可能跳过了Block最后的\0部分，因此这里倒推下record在文件真正的起始位置
     uint64_t physical_record_offset =
         end_of_buffer_offset_ - buffer_.size() - kHeaderSize - fragment.size();
 
@@ -108,6 +109,7 @@ bool Reader::ReadRecord(Slice* record, std::string* scratch) {
         prospective_record_offset = physical_record_offset;
         scratch->clear();
         *record = fragment;
+        //last_record_offset_记录该record在文件的起始位置
         last_record_offset_ = prospective_record_offset;
         return true;
 
@@ -121,6 +123,8 @@ bool Reader::ReadRecord(Slice* record, std::string* scratch) {
             ReportCorruption(scratch->size(), "partial record without end(2)");
           }
         }
+        //如果record分了多个fragment写入，则prospective_record_offset记录第一个fragment的写入offset
+        //即record在文件的起始位置
         prospective_record_offset = physical_record_offset;
         scratch->assign(fragment.data(), fragment.size());
         in_fragmented_record = true;
@@ -142,6 +146,7 @@ bool Reader::ReadRecord(Slice* record, std::string* scratch) {
         } else {
           scratch->append(fragment.data(), fragment.size());
           *record = Slice(*scratch);
+          //prospective_record_offset在改record第一次读到时记录
           last_record_offset_ = prospective_record_offset;
           return true;
         }
@@ -194,8 +199,10 @@ void Reader::ReportDrop(uint64_t bytes, const Status& reason) {
   }
 }
 
+//解析存储格式，数据存储到result，返回写入格式(RecordType)
 unsigned int Reader::ReadPhysicalRecord(Slice* result) {
   while (true) {
+    //比kHeaderSize小，则表示这段是write该段Block的尾部\0部分，可以跳过读取下一段Block.
     if (buffer_.size() < kHeaderSize) {
       if (!eof_) {
         // Last read was a full read, so this is a trailer to skip
@@ -222,6 +229,7 @@ unsigned int Reader::ReadPhysicalRecord(Slice* result) {
     }
 
     // Parse the header
+    // header始终指向buffer首部
     const char* header = buffer_.data();
     //header[4]存储length低两位，header[5]存储length高两位
     const uint32_t a = static_cast<uint32_t>(header[4]) & 0xff;
@@ -258,6 +266,7 @@ unsigned int Reader::ReadPhysicalRecord(Slice* result) {
       //反解crc过程: DecodeFixed32 -> Unmask
       //因为DecodeFixed32固定取4个字节，所以直接传入header，不需要指定长度
       uint32_t expected_crc = crc32c::Unmask(DecodeFixed32(header));
+      //计算crc校验
       uint32_t actual_crc = crc32c::Value(header + 6, 1 + length);
       if (actual_crc != expected_crc) {
         // Drop the rest of the buffer since "length" itself may have
@@ -271,6 +280,7 @@ unsigned int Reader::ReadPhysicalRecord(Slice* result) {
       }
     }
 
+    //从buffer_去掉解析完成的fragment
     buffer_.remove_prefix(kHeaderSize + length);
 
     // Skip physical record that started before initial_offset_
@@ -280,6 +290,7 @@ unsigned int Reader::ReadPhysicalRecord(Slice* result) {
       return kBadRecord;
     }
 
+    //读到的数据使用result存储
     *result = Slice(header + kHeaderSize, length);
     return type;
   }

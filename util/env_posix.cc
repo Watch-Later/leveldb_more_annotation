@@ -686,6 +686,7 @@ PosixEnv::PosixEnv()
 void PosixEnv::Schedule(void (*function)(void*), void* arg) {
   PthreadCall("lock", pthread_mutex_lock(&mu_));
 
+  //启动一个线程，入口函数为BGThreadWrapper
   // Start background thread if necessary
   if (!started_bgthread_) {
     started_bgthread_ = true;

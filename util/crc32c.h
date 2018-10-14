@@ -11,6 +11,8 @@
 namespace leveldb {
 namespace crc32c {
 
+//crc32c满足以下规则：
+//Extend(0, "helloworld", 10) = Extend(Extend(0, "heelo", 5), "world", 5)
 // Return the crc32c of concat(A, data[0,n-1]) where init_crc is the
 // crc32c of some string A.  Extend() is often used to maintain the
 // crc32c of a stream of data.

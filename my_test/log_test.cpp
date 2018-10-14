@@ -1,19 +1,3 @@
-/***************************************************************************
- * 
- * Copyright (c) 2018 Baidu.com, Inc. All Rights Reserved
- * $Id$ 
- * 
- **************************************************************************/
- 
- /**
- * @file log_test.cpp
- * @author zhangying21(zhangying21@baidu.com)
- * @date 2018/10/11 20:53:57
- * @version $Revision$ 
- * @brief 
- *  
- **/
-
 #include <iostream>
 #include "util/logging.h"
 #include "leveldb/slice.h"

@@ -424,6 +424,7 @@ Status DBImpl::RecoverLogFile(uint64_t log_number, bool last_log,
   MemTable* mem = nullptr;
   while (reader.ReadRecord(&record, &scratch) &&
          status.ok()) {
+      //12 = sizeof(sequence number) + sizeof(count)?
     if (record.size() < 12) {
       reporter.Corruption(
           record.size(), Status::Corruption("log record too small"));
@@ -1207,7 +1208,9 @@ Status DBImpl::Delete(const WriteOptions& options, const Slice& key) {
   return DB::Delete(options, key);
 }
 
+//调用流程: DBImpl::Put -> DB::Put -> DBImpl::Write
 Status DBImpl::Write(const WriteOptions& options, WriteBatch* my_batch) {
+  //一次Write写入内容会首先封装到Writer里，Writer同时记录是否完成写入、触发Writer写入的条件变量等
   Writer w(&mutex_);
   w.batch = my_batch;
   w.sync = options.sync;
@@ -1220,8 +1223,7 @@ Status DBImpl::Write(const WriteOptions& options, WriteBatch* my_batch) {
   while (!w.done && &w != writers_.front()) {
     w.cv.Wait();
   }
-  //如果已经完成了写入(by其他Writer)，则直接返回
-  //w.status也已经设置？
+  //如果醒来并且抢到了mutex_，检查是否已经完成了写入(by其他Writer)，则直接返回写入status
   if (w.done) {
     return w.status;
   }
@@ -1231,7 +1233,9 @@ Status DBImpl::Write(const WriteOptions& options, WriteBatch* my_batch) {
   uint64_t last_sequence = versions_->LastSequence();
   Writer* last_writer = &w;
   if (status.ok() && my_batch != nullptr) {  // nullptr batch is for compactions
+    //updates存储合并后的所有WriteBatch
     WriteBatch* updates = BuildBatchGroup(&last_writer);
+    //这两句说明所有操作都有不同Sequence?
     WriteBatchInternal::SetSequence(updates, last_sequence + 1);
     last_sequence += WriteBatchInternal::Count(updates);
 
@@ -1241,14 +1245,17 @@ Status DBImpl::Write(const WriteOptions& options, WriteBatch* my_batch) {
     // into mem_.
     {
       mutex_.Unlock();
+      //WriterBatch写入log文件，包括:sequence,操作count,每次操作的类型(Put/Delete)，key/value及其长度
       status = log_->AddRecord(WriteBatchInternal::Contents(updates));
       bool sync_error = false;
       if (status.ok() && options.sync) {
+          //log_底层使用logfile_与文件系统交互，调用Sync完成写入
         status = logfile_->Sync();
         if (!status.ok()) {
           sync_error = true;
         }
       }
+      //写入文件系统后不用担心数据丢失，继续插入MemTable
       if (status.ok()) {
         status = WriteBatchInternal::InsertInto(updates, mem_);
       }
@@ -1265,6 +1272,8 @@ Status DBImpl::Write(const WriteOptions& options, WriteBatch* my_batch) {
     versions_->SetLastSequence(last_sequence);
   }
 
+  //last_writer记录了writers_里合并的最后一个Writer
+  //逐个遍历弹出writers_里的元素，直到遇到last_writer
   while (true) {
     Writer* ready = writers_.front();
     writers_.pop_front();
@@ -1277,6 +1286,7 @@ Status DBImpl::Write(const WriteOptions& options, WriteBatch* my_batch) {
   }
 
   // Notify new head of write queue
+  // 唤醒队列未写入的第一个Writer
   if (!writers_.empty()) {
     writers_.front()->cv.Signal();
   }
@@ -1286,8 +1296,8 @@ Status DBImpl::Write(const WriteOptions& options, WriteBatch* my_batch) {
 
 // REQUIRES: Writer list must be non-empty
 // REQUIRES: First writer must have a non-null batch
-// 合并writers_里多个Writer到tmp_batch_，last_writer记录最后一个被合并的Write
-// 返回tmp_batch_
+// 合并writers_里多个Writer到tmp_batch_，last_writer记录队列最后一个被合并的Writer
+// 返回合并的最后结果tmp_batch_
 WriteBatch* DBImpl::BuildBatchGroup(Writer** last_writer) {
   mutex_.AssertHeld();
   assert(!writers_.empty());
@@ -1308,7 +1318,8 @@ WriteBatch* DBImpl::BuildBatchGroup(Writer** last_writer) {
   *last_writer = first;
   std::deque<Writer*>::iterator iter = writers_.begin();
   ++iter;  // Advance past "first"
-  //wirters_是一个队列，后面的Writer一定还没有写入？
+  //遍历writers_队列，逐个合并到tmp_batch_，last_writer记录队列最后一个被合并的Writer
+  //注意不会删除队列元素
   for (; iter != writers_.end(); ++iter) {
     Writer* w = *iter;
     if (w->sync && !first->sync) {
