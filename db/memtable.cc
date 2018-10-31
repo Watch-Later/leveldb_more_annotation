@@ -64,7 +64,12 @@ class MemTableIterator: public Iterator {
   virtual void SeekToLast() { iter_.SeekToLast(); }
   virtual void Next() { iter_.Next(); }
   virtual void Prev() { iter_.Prev(); }
+  //存储到skiplist的格式为:
+  //|encode(internal_key.size)  |internal_key  |encode(value.size())  |value  |
+  //通过GetLengthPrefixedSlice获取internal_key返回
   virtual Slice key() const { return GetLengthPrefixedSlice(iter_.key()); }
+  //首先通过GetLengthPrefixedSlice获取internal_key
+  //然后通过GetLengthPrefixedSlice解析剩余字符串得到value返回
   virtual Slice value() const {
     Slice key_slice = GetLengthPrefixedSlice(iter_.key());
     return GetLengthPrefixedSlice(key_slice.data() + key_slice.size());

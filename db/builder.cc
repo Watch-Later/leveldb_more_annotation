@@ -14,6 +14,8 @@
 
 namespace leveldb {
 
+//遍历iter，数据flush到x.ldb的文件
+//meta记录文件信息：internal_key的range，文件大小等
 Status BuildTable(const std::string& dbname,
                   Env* env,
                   const Options& options,
@@ -22,9 +24,9 @@ Status BuildTable(const std::string& dbname,
                   FileMetaData* meta) {
   Status s;
   meta->file_size = 0;
-  iter->SeekToFirst();
+  iter->SeekToFirst();//iter指向memtable第一个元素
 
-  std::string fname = TableFileName(dbname, meta->number);
+  std::string fname = TableFileName(dbname, meta->number);//"$dbname/$number.ldb"
   if (iter->Valid()) {
     WritableFile* file;
     s = env->NewWritableFile(fname, &file);
@@ -33,7 +35,10 @@ Status BuildTable(const std::string& dbname,
     }
 
     TableBuilder* builder = new TableBuilder(options, file);
+    //iter->key返回memtable的InternalKey，smallest记录最小internal_key
     meta->smallest.DecodeFrom(iter->key());
+    //遍历memtable, 获取internal_key及value，写入builder
+    //同时更新meta-largest记录最大的internal_key(iter->SeekToLast是相同的效果，但是多一遍遍历所以不用？)
     for (; iter->Valid(); iter->Next()) {
       Slice key = iter->key();
       meta->largest.DecodeFrom(key);

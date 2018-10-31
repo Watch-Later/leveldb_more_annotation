@@ -31,11 +31,14 @@ void PutLengthPrefixedSlice(std::string* dst, const Slice& value);
 
 // Standard Get... routines parse a value from the beginning of a Slice
 // and advance the slice past the parsed value.
-// 从input首字节解码varint编码后的整数值，存储到value.
-// 修改input指向剩余字符串，即input += len(varint)
-// 注：input参数同时起到[in | out]的作用
+// input首部包含一个varing32后的整数值：|varint32(value)  |
+// 从input解析出value，修改input指向剩余字符串，及varint32(value)的下一字节
+// 注：param input: [in | out]
+// param value: [out]
 bool GetVarint32(Slice* input, uint32_t* value);
 bool GetVarint64(Slice* input, uint64_t* value);
+//input首部包含两部分内容：|varint32(result.size())  |result  |
+//从input解析出result，修改input指向剩余字符串，即result的下一字节
 bool GetLengthPrefixedSlice(Slice* input, Slice* result);
 
 // Pointer-based variants of GetVarint...  These either store a value

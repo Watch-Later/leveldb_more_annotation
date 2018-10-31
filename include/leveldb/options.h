@@ -39,7 +39,7 @@ struct LEVELDB_EXPORT Options {
   // REQUIRES: The client must ensure that the comparator supplied
   // here has the same name and orders keys *exactly* the same as the
   // comparator provided to previous open calls on the same DB.
-  const Comparator* comparator;//默认为BytewiseComparator
+  const Comparator* comparator;//默认为BytewiseComparatorImpl
 
   // If true, the database will be created if it is missing.
   // Default: false

@@ -31,10 +31,12 @@ class BlockHandle {
   uint64_t size() const { return size_; }
   void set_size(uint64_t size) { size_ = size; }
 
+  //|varint64(offset)  |varint64(size)  |
   void EncodeTo(std::string* dst) const;
   Status DecodeFrom(Slice* input);
 
   // Maximum encoding length of a BlockHandle
+  // varint64后最多占10个字节
   enum { kMaxEncodedLength = 10 + 10 };
 
  private:

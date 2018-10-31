@@ -505,13 +505,14 @@ Status DBImpl::WriteLevel0Table(MemTable* mem, VersionEdit* edit,
   FileMetaData meta;
   meta.number = versions_->NewFileNumber();
   pending_outputs_.insert(meta.number);
-  Iterator* iter = mem->NewIterator();
+  Iterator* iter = mem->NewIterator();//memtable迭代器
   Log(options_.info_log, "Level-0 table #%llu: started",
       (unsigned long long) meta.number);
 
   Status s;
   {
     mutex_.Unlock();
+    //更新memtable中全部数据到文件
     s = BuildTable(dbname_, env_, options_, table_cache_, iter, &meta);
     mutex_.Lock();
   }
@@ -697,17 +698,21 @@ void DBImpl::BackgroundCall() {
   background_work_finished_signal_.SignalAll();
 }
 
+//实际Compact
 void DBImpl::BackgroundCompaction() {
   mutex_.AssertHeld();
 
+  //先compact immutable memtable，称为Minor Compaction?
   if (imm_ != nullptr) {
     CompactMemTable();
     return;
   }
 
+  //合并文件，称为Major Compaction?
   Compaction* c;
   bool is_manual = (manual_compaction_ != nullptr);
   InternalKey manual_end;
+  //手动指定compact
   if (is_manual) {
     ManualCompaction* m = manual_compaction_;
     c = versions_->CompactRange(m->level, m->begin, m->end);
@@ -722,6 +727,7 @@ void DBImpl::BackgroundCompaction() {
         (m->end ? m->end->DebugString().c_str() : "(end)"),
         (m->done ? "(end)" : manual_end.DebugString().c_str()));
   } else {
+  //自动compact
     c = versions_->PickCompaction();
   }
 
@@ -1374,7 +1380,7 @@ Status DBImpl::MakeRoomForWrite(bool force) {
       allow_delay = false;  // Do not delay a single write more than once
       mutex_.Lock();
     } else if (!force &&
-               (mem_->ApproximateMemoryUsage() <= options_.write_buffer_size)) {
+               (mem_->ApproximateMemoryUsage() <= options_.write_buffer_size)) {//不足4M
       // There is room in current memtable
       break;
     } else if (imm_ != nullptr) {
@@ -1384,8 +1390,8 @@ Status DBImpl::MakeRoomForWrite(bool force) {
       background_work_finished_signal_.Wait();
     } else if (versions_->NumLevelFiles(0) >= config::kL0_StopWritesTrigger) {
       // There are too many level-0 files.
-      // level-0文件个数>=kL0_StopWritesTrigger，则停止写入等待
-      // 等待啥？
+      // level-0文件个数>=kL0_StopWritesTrigger，则停止写入
+      // why？
       Log(options_.info_log, "Too many L0 files; waiting...\n");
       background_work_finished_signal_.Wait();
     } else {

@@ -68,6 +68,7 @@ typedef uint64_t SequenceNumber;
 static const SequenceNumber kMaxSequenceNumber =
     ((0x1ull << 56) - 1);
 
+//internal key三元素：user_key, sequence, type
 struct ParsedInternalKey {
   Slice user_key;
   SequenceNumber sequence;

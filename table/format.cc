@@ -33,9 +33,10 @@ void Footer::EncodeTo(std::string* dst) const {
   const size_t original_size = dst->size();
   metaindex_handle_.EncodeTo(dst);
   index_handle_.EncodeTo(dst);
+  //补全到40 bytes
   dst->resize(2 * BlockHandle::kMaxEncodedLength);  // Padding
-  PutFixed32(dst, static_cast<uint32_t>(kTableMagicNumber & 0xffffffffu));
-  PutFixed32(dst, static_cast<uint32_t>(kTableMagicNumber >> 32));
+  PutFixed32(dst, static_cast<uint32_t>(kTableMagicNumber & 0xffffffffu));//8b80fb57
+  PutFixed32(dst, static_cast<uint32_t>(kTableMagicNumber >> 32));//db477524
   assert(dst->size() == original_size + kEncodedLength);
   (void)original_size;  // Disable unused variable warning.
 }

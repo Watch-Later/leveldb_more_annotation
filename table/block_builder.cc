@@ -41,6 +41,7 @@ BlockBuilder::BlockBuilder(const Options* options)
       restarts_(),
       counter_(0),
       finished_(false) {
+  //default block_restart_interval is 16. 
   assert(options->block_restart_interval >= 1);
   restarts_.push_back(0);       // First restart point is at offset 0
 }
@@ -62,6 +63,8 @@ size_t BlockBuilder::CurrentSizeEstimate() const {
 
 Slice BlockBuilder::Finish() {
   // Append restart array
+  // 注：即使buffer_为空(即没有掉用过Add接口)，仍然需要写入restarts_
+  // 写入字节为: 00000000 01000000
   for (size_t i = 0; i < restarts_.size(); i++) {
     PutFixed32(&buffer_, restarts_[i]);
   }
@@ -79,11 +82,13 @@ void BlockBuilder::Add(const Slice& key, const Slice& value) {
   size_t shared = 0;
   if (counter_ < options_->block_restart_interval) {
     // See how much sharing to do with previous string
+    // 看下跟上一个string有多少相同前缀
     const size_t min_length = std::min(last_key_piece.size(), key.size());
     while ((shared < min_length) && (last_key_piece[shared] == key[shared])) {
       shared++;
     }
   } else {
+    // 个数达到上限(为什么要有上限的设计？)，需要restart了
     // Restart compression
     restarts_.push_back(buffer_.size());
     counter_ = 0;

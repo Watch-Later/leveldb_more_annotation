@@ -26,17 +26,25 @@ class BytewiseComparatorImpl : public Comparator {
     return a.compare(b);
   }
 
+  //比较start, limit，得到满足>start && < limit的第一个字符串
+  //这个字符串的好处是比start长度要小
+  //如果找不到，那么不修改start
+  //(abcdefg, abcdxyz) -> *start = abcdf
+  //(abcdxyz, abcdefg) -> *start = abcdxyz
+  //(abcdefg, abcdffg) -> *start = abcdefg
   virtual void FindShortestSeparator(
       std::string* start,
       const Slice& limit) const {
     // Find length of common prefix
     size_t min_length = std::min(start->size(), limit.size());
     size_t diff_index = 0;
+    //diff_index指向start与limit第一个不同的字符
     while ((diff_index < min_length) &&
            ((*start)[diff_index] == limit[diff_index])) {
       diff_index++;
     }
 
+    //前缀
     if (diff_index >= min_length) {
       // Do not shorten if one string is a prefix of the other
     } else {

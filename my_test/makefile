@@ -28,3 +28,15 @@ log_test:log_test.cpp
 
 crc32c_test:crc32c_test.cpp
 	$(CXX) -o $@ $< $(LIBS) $(CPPFLAGS) $(LDFLAGS)
+
+dbformat_test:dbformat_test.cpp
+	$(CXX) -o $@ $< $(LIBS) $(CPPFLAGS) $(LDFLAGS)
+
+table_builder_test:table_builder_test.cpp
+	$(CXX) -o $@ $< $(LIBS) $(CPPFLAGS) $(LDFLAGS)
+
+comparator_test:comparator_test.cpp
+	$(CXX) -o $@ $< $(LIBS) $(CPPFLAGS) $(LDFLAGS)
+
+block_builder_test:block_builder_test.cpp
+	$(CXX) -o $@ $< $(LIBS) $(CPPFLAGS) $(LDFLAGS)
