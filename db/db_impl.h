@@ -189,6 +189,7 @@ class DBImpl : public DB {
       this->bytes_written += c.bytes_written;
     }
   };
+  //每一层都一个CompactionStats?
   CompactionStats stats_[config::kNumLevels] GUARDED_BY(mutex_);
 
   // No copying allowed

@@ -136,13 +136,17 @@ class Version {
   // List of files per level
   std::vector<FileMetaData*> files_[config::kNumLevels];
 
+  //Compaction触发条件有两种：file_to_compact_ != NULL or compaction_score_ > 1.0
   // Next file to compact based on seek stats.
+  // 下次compaction的file及level，基于allowed_seeks计算
   FileMetaData* file_to_compact_;
   int file_to_compact_level_;
 
   // Level that should be compacted next and its compaction score.
   // Score < 1 means compaction is not strictly needed.  These fields
   // are initialized by Finalize().
+  // 下次compaction的score及level，如果score < 1，表明没有必要compact
+  // 在Finalize里计算，基于文件大小or个数
   double compaction_score_;
   int compaction_level_;
 

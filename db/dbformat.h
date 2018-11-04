@@ -121,6 +121,7 @@ class InternalKeyComparator : public Comparator {
 
   const Comparator* user_comparator() const { return user_comparator_; }
 
+  //调用Compare(const Slice&, const Slice&)
   int Compare(const InternalKey& a, const InternalKey& b) const;
 };
 
@@ -147,7 +148,9 @@ class InternalKey {
     AppendInternalKey(&rep_, ParsedInternalKey(user_key, s, t));
   }
 
+  //名字叫做Decode，实际上就是直接copy s
   void DecodeFrom(const Slice& s) { rep_.assign(s.data(), s.size()); }
+  //返回的Slice, 如果是std:string，性能和内存都会受影响
   Slice Encode() const {
     assert(!rep_.empty());
     return rep_;
@@ -170,6 +173,7 @@ inline int InternalKeyComparator::Compare(
   return Compare(a.Encode(), b.Encode());
 }
 
+//internal_key -> result
 inline bool ParseInternalKey(const Slice& internal_key,
                              ParsedInternalKey* result) {
   const size_t n = internal_key.size();
