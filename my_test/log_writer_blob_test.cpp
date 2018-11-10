@@ -5,7 +5,7 @@
 #include "util/coding.h"
 
 int main() {
-    std::string file_name("log_writer.data");
+    std::string file_name("log_writer_blob.data");
 
     leveldb::WritableFile* file;
     leveldb::Status s = leveldb::Env::Default()->NewWritableFile(
@@ -14,9 +14,12 @@ int main() {
 
     leveldb::log::Writer writer(file);
 
-    const std::string data = "HelloWorld";
-    s = writer.AddRecord(data);//字符串长度10=0x0a
+    std::string data(leveldb::log::kBlockSize - leveldb::log::kHeaderSize - 10, 'a');
+    s = writer.AddRecord(data);//字符串长度32751 = 0x7fef
     std::cout << s.ToString() << std::endl;
+
+    data.assign("HelloWorld");
+    s = writer.AddRecord(data);
 
     delete file;
 

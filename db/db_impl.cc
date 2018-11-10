@@ -1415,8 +1415,8 @@ Status DBImpl::MakeRoomForWrite(bool force) {
       background_work_finished_signal_.Wait();
     } else if (versions_->NumLevelFiles(0) >= config::kL0_StopWritesTrigger) {
       // There are too many level-0 files.
-      // level-0文件个数>=kL0_StopWritesTrigger，则停止写入
-      // why？
+      // level-0文件个数需要控制，避免影响查找速度
+      // 因此>=kL0_StopWritesTrigger，则停止写入
       Log(options_.info_log, "Too many L0 files; waiting...\n");
       background_work_finished_signal_.Wait();
     } else {
@@ -1435,7 +1435,7 @@ Status DBImpl::MakeRoomForWrite(bool force) {
       logfile_ = lfile;
       logfile_number_ = new_log_number;
       log_ = new log::Writer(lfile);
-      imm_ = mem_;
+      imm_ = mem_;//mem_大小超过4M，因此转化为imm_
       has_imm_.Release_Store(imm_);
       mem_ = new MemTable(internal_comparator_);
       mem_->Ref();

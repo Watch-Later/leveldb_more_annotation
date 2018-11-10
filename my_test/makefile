@@ -5,6 +5,9 @@ LDFLAGS=-lpthread
 sample:sample.cpp
 	$(CXX) -o $@ $< $(LIBS) $(CPPFLAGS) $(LDFLAGS)
 
+test:test.cpp
+	$(CXX) -o $@ $< $(LIBS) $(CPPFLAGS) $(LDFLAGS)
+
 version_edit_test:version_edit_test.cpp
 	$(CXX) -o $@ $< $(LIBS) $(CPPFLAGS) $(LDFLAGS)
 
@@ -15,6 +18,9 @@ posix_writable_file_test:posix_writable_file_test.cpp
 	$(CXX) -o $@ $< $(LIBS) $(CPPFLAGS) $(LDFLAGS)
 
 log_writer_test:log_writer_test.cpp
+	$(CXX) -o $@ $< $(LIBS) $(CPPFLAGS) $(LDFLAGS)
+
+log_writer_blob_test:log_writer_blob_test.cpp
 	$(CXX) -o $@ $< $(LIBS) $(CPPFLAGS) $(LDFLAGS)
 
 filename_test:filename_test.cpp
