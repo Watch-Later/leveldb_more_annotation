@@ -65,6 +65,7 @@ Slice BlockBuilder::Finish() {
   // Append restart array
   // 注：即使buffer_为空(即没有掉用过Add接口)，仍然需要写入restarts_
   // 写入字节为: 00000000 01000000
+  // 为什么这里不是varint32?
   for (size_t i = 0; i < restarts_.size(); i++) {
     PutFixed32(&buffer_, restarts_[i]);
   }
@@ -88,7 +89,6 @@ void BlockBuilder::Add(const Slice& key, const Slice& value) {
       shared++;
     }
   } else {
-    // 个数达到上限(为什么要有上限的设计？)，需要restart了
     // Restart compression
     restarts_.push_back(buffer_.size());
     counter_ = 0;

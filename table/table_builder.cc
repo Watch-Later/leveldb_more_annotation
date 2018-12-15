@@ -21,9 +21,9 @@ struct TableBuilder::Rep {
   Options options;
   Options index_block_options;
   WritableFile* file;
-  uint64_t offset;
+  uint64_t offset;//file当前写入大小
   Status status;
-  //data&&index存储都采用相同的格式，通过BlockBuilder完成
+  //data block&&index block都采用相同的格式，通过BlockBuilder完成
   //不过block_restart_interval参数不同
   BlockBuilder data_block;
   BlockBuilder index_block;
@@ -96,6 +96,7 @@ Status TableBuilder::ChangeOptions(const Options& options) {
   return Status::OK();
 }
 
+//更新数据到data_block，fiter_block，可能触发data_block的落盘以及index_block的更新
 void TableBuilder::Add(const Slice& key, const Slice& value) {
   Rep* r = rep_;
   assert(!r->closed);
@@ -105,9 +106,11 @@ void TableBuilder::Add(const Slice& key, const Slice& value) {
     assert(r->options.comparator->Compare(key, Slice(r->last_key)) > 0);
   }
 
-  //刚写入了一个data block
+  //刚写入了一个data block后设置为true
   if (r->pending_index_entry) {
     assert(r->data_block.empty());
+    //计算满足>r->last_key && <= key的第一个字符串，存储到r->last_key
+    //例如(abcdefg, abcdxyz) -> 1st_arg = abcdf
     r->options.comparator->FindShortestSeparator(&r->last_key, key);
     std::string handle_encoding;
     //pending_handle记录的是上个block写入前的offset及大小
@@ -131,17 +134,19 @@ void TableBuilder::Add(const Slice& key, const Slice& value) {
   }
 }
 
-//写入data block，更新pending handle, filter_block?
+//写入data block，更新pending handle, filter_block
 void TableBuilder::Flush() {
   Rep* r = rep_;
   assert(!r->closed);
   if (!ok()) return;
   if (r->data_block.empty()) return;
   assert(!r->pending_index_entry);
-  //写入r->data_block到r->file，更新pending_handle的size/offset
+  //写入r->data_block到r->file
+  //更新pending_handle: size为r->data_block的大小，offset为写入data_block前的offset
+  //因此pending_handle可以定位一个完整的data_block
   WriteBlock(&r->data_block, &r->pending_handle);
   if (ok()) {
-    //需要写入一个index
+    //标记需要写入一个index
     r->pending_index_entry = true;
     //r->file落盘
     r->status = r->file->Flush();
@@ -151,6 +156,7 @@ void TableBuilder::Flush() {
   }
 }
 
+//从block取出数据写入到文件，handle记录本次写入的数据size，以及写入前的offset
 void TableBuilder::WriteBlock(BlockBuilder* block, BlockHandle* handle) {
   // File format contains a sequence of blocks where each block has:
   //    block_data: uint8[n]

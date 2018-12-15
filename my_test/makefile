@@ -46,3 +46,12 @@ comparator_test:comparator_test.cpp
 
 block_builder_test:block_builder_test.cpp
 	$(CXX) -o $@ $< $(LIBS) $(CPPFLAGS) $(LDFLAGS)
+
+snapshot_test:snapshot_test.cpp
+	$(CXX) -o $@ $< $(LIBS) $(CPPFLAGS) $(LDFLAGS)
+
+bloom_test:bloom_test.cpp
+	$(CXX) -o $@ $< $(LIBS) $(CPPFLAGS) $(LDFLAGS)
+
+filter_block_test:filter_block_test.cpp
+	$(CXX) -o $@ $< $(LIBS) $(CPPFLAGS) $(LDFLAGS)

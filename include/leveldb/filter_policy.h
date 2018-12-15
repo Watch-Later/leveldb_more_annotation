@@ -39,6 +39,7 @@ class LEVELDB_EXPORT FilterPolicy {
   //
   // Warning: do not change the initial contents of *dst.  Instead,
   // append the newly constructed filter to *dst.
+  // 传入存储在keys的n个key，使用dst记录key是否存在.
   virtual void CreateFilter(const Slice* keys, int n, std::string* dst)
       const = 0;
 
@@ -47,6 +48,7 @@ class LEVELDB_EXPORT FilterPolicy {
   // the key was in the list of keys passed to CreateFilter().
   // This method may return true or false if the key was not on the
   // list, but it should aim to return false with a high probability.
+  // 通过CreateFilter产出的dst(filter)，计算key是否存在
   virtual bool KeyMayMatch(const Slice& key, const Slice& filter) const = 0;
 };
 

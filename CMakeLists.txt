@@ -78,6 +78,7 @@ if(BUILD_SHARED_LIBS)
   # Only export LEVELDB_EXPORT symbols from the shared library.
   add_compile_options(-fvisibility=hidden)
 endif(BUILD_SHARED_LIBS)
+add_compile_options(-g -O0)
 
 add_library(leveldb "")
 target_sources(leveldb

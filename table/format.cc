@@ -42,6 +42,7 @@ void Footer::EncodeTo(std::string* dst) const {
 }
 
 Status Footer::DecodeFrom(Slice* input) {
+  //magic number check
   const char* magic_ptr = input->data() + kEncodedLength - 8;
   const uint32_t magic_lo = DecodeFixed32(magic_ptr);
   const uint32_t magic_hi = DecodeFixed32(magic_ptr + 4);
@@ -63,6 +64,11 @@ Status Footer::DecodeFrom(Slice* input) {
   return result;
 }
 
+//从file读取数据，偏移量和size由handle指定
+//result->data记录数据部分(除去CompressionType + CRC.)
+//file可能是PosixMmapReadableFile or PosixRandomAccessFile
+//对于PosixMmapReadableFile，数据已经在内存，因此cachable=False,heap_allocated=False
+//对于PosixRandomAccessFile，不持有数据，因此cachable=True,heap_allocated=True
 Status ReadBlock(RandomAccessFile* file,
                  const ReadOptions& options,
                  const BlockHandle& handle,
@@ -86,6 +92,7 @@ Status ReadBlock(RandomAccessFile* file,
     return Status::Corruption("truncated block read");
   }
 
+  //从最后4个字节读取crc校验
   // Check the crc of the type and the block contents
   const char* data = contents.data();    // Pointer to where Read put the data
   if (options.verify_checksums) {
@@ -98,6 +105,7 @@ Status ReadBlock(RandomAccessFile* file,
     }
   }
 
+  //倒数第5个字节读取CompressionType
   switch (data[n]) {
     case kNoCompression:
       if (data != buf) {

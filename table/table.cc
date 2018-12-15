@@ -46,6 +46,7 @@ Status Table::Open(const Options& options,
 
   char footer_space[Footer::kEncodedLength];
   Slice footer_input;
+  //读取footer: 最后kEncodedLength个字节
   Status s = file->Read(size - Footer::kEncodedLength, Footer::kEncodedLength,
                         &footer_input, footer_space);
   if (!s.ok()) return s;
@@ -55,6 +56,7 @@ Status Table::Open(const Options& options,
   if (!s.ok()) return s;
 
   // Read the index block
+  // 读取index block，内容存储到index_block_contents
   BlockContents index_block_contents;
   if (s.ok()) {
     ReadOptions opt;
@@ -83,6 +85,7 @@ Status Table::Open(const Options& options,
   return s;
 }
 
+//读取filter
 void Table::ReadMeta(const Footer& footer) {
   if (rep_->options.filter_policy == nullptr) {
     return;  // Do not need any metadata
@@ -164,7 +167,7 @@ Iterator* Table::BlockReader(void* arg,
   Block* block = nullptr;
   Cache::Handle* cache_handle = nullptr;
 
-  BlockHandle handle;
+  BlockHandle handle;//block的offset 和 size
   Slice input = index_value;
   Status s = handle.DecodeFrom(&input);
   // We intentionally allow extra stuff in index_value so that we
@@ -191,6 +194,7 @@ Iterator* Table::BlockReader(void* arg,
         }
       }
     } else {
+      //从table->rep_->file按照handle读取数据，数据存储到contents
       s = ReadBlock(table->rep_->file, options, handle, &contents);
       if (s.ok()) {
         block = new Block(contents);
@@ -223,6 +227,7 @@ Status Table::InternalGet(const ReadOptions& options, const Slice& k,
                           void (*saver)(void*, const Slice&, const Slice&)) {
   Status s;
   Iterator* iiter = rep_->index_block->NewIterator(rep_->options.comparator);
+  //在index block内查找k可能位于哪个data block
   iiter->Seek(k);
   if (iiter->Valid()) {
     Slice handle_value = iiter->value();
@@ -231,9 +236,12 @@ Status Table::InternalGet(const ReadOptions& options, const Slice& k,
     if (filter != nullptr &&
         handle.DecodeFrom(&handle_value).ok() &&
         !filter->KeyMayMatch(handle.offset(), k)) {
+      //filter判断不存在，那么一定不存在
       // Not found
     } else {
+      //iiter->value记录了一个data block的offset && size，读取之
       Iterator* block_iter = BlockReader(this, options, iiter->value());
+      //在data block内查找k
       block_iter->Seek(k);
       if (block_iter->Valid()) {
         (*saver)(arg, block_iter->key(), block_iter->value());

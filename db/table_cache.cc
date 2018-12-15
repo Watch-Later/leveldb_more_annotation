@@ -45,17 +45,18 @@ TableCache::~TableCache() {
 Status TableCache::FindTable(uint64_t file_number, uint64_t file_size,
                              Cache::Handle** handle) {
   Status s;
+  //file_number是谁的key?
   char buf[sizeof(file_number)];
   EncodeFixed64(buf, file_number);
   Slice key(buf, sizeof(buf));
   *handle = cache_->Lookup(key);
   if (*handle == nullptr) {
-    std::string fname = TableFileName(dbname_, file_number);
+    std::string fname = TableFileName(dbname_, file_number);//x.ldb
     RandomAccessFile* file = nullptr;
     Table* table = nullptr;
     s = env_->NewRandomAccessFile(fname, &file);
     if (!s.ok()) {
-      std::string old_fname = SSTTableFileName(dbname_, file_number);
+      std::string old_fname = SSTTableFileName(dbname_, file_number);//x.sst
       if (env_->NewRandomAccessFile(old_fname, &file).ok()) {
         s = Status::OK();
       }

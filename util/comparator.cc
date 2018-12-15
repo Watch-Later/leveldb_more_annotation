@@ -26,7 +26,7 @@ class BytewiseComparatorImpl : public Comparator {
     return a.compare(b);
   }
 
-  //比较start, limit，得到满足>start && < limit的第一个字符串
+  //比较start, limit，得到满足>start && <= limit的第一个字符串
   //这个字符串的好处是比start长度要小
   //如果找不到，那么不修改start
   //(abcdefg, abcdxyz) -> *start = abcdf

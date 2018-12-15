@@ -284,6 +284,10 @@ struct Saver {
   std::string* value;
 };
 }
+
+//判断ikey是否等于Saver.user_key
+//如果相等：s->state标记kFound or kDeleted，如果是kFound，则记录v到Saver.value，
+//如果不相等：表示没有找到，不做修改(s->state默认为kNotFound)
 static void SaveValue(void* arg, const Slice& ikey, const Slice& v) {
   Saver* s = reinterpret_cast<Saver*>(arg);
   ParsedInternalKey parsed_key;

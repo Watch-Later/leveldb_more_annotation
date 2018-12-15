@@ -1161,6 +1161,7 @@ Status DBImpl::Get(const ReadOptions& options,
     snapshot =
         static_cast<const SnapshotImpl*>(options.snapshot)->sequence_number();
   } else {
+    //否则使用一个最大的sequence_number?
     snapshot = versions_->LastSequence();
   }
 
@@ -1180,11 +1181,14 @@ Status DBImpl::Get(const ReadOptions& options,
     // First look in the memtable, then in the immutable memtable (if any).
     // 查找时需要指定SequenceNumber
     LookupKey lkey(key, snapshot);
+    //先查找memtable
     if (mem->Get(lkey, value, &s)) {
       // Done
+    //再查找immutable memtable
     } else if (imm != nullptr && imm->Get(lkey, value, &s)) {
       // Done
     } else {
+      //查找sstable
       s = current->Get(options, lkey, value, &stats);
       have_stat_update = true;
     }

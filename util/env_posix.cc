@@ -211,6 +211,7 @@ class PosixMmapReadableFile: public RandomAccessFile {
     limiter_->Release();
   }
 
+  //mmap的Read没有用到scratch
   virtual Status Read(uint64_t offset, size_t n, Slice* result,
                       char* scratch) const {
     Status s;
