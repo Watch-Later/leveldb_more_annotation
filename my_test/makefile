@@ -20,6 +20,9 @@ posix_writable_file_test:posix_writable_file_test.cpp
 log_writer_test:log_writer_test.cpp
 	$(CXX) -o $@ $< $(LIBS) $(CPPFLAGS) $(LDFLAGS)
 
+log_reader_test:log_reader_test.cpp
+	$(CXX) -o $@ $< $(LIBS) $(CPPFLAGS) $(LDFLAGS)
+
 log_writer_blob_test:log_writer_blob_test.cpp
 	$(CXX) -o $@ $< $(LIBS) $(CPPFLAGS) $(LDFLAGS)
 
