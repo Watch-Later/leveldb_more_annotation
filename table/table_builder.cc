@@ -207,6 +207,7 @@ void TableBuilder::WriteRawBlock(const Slice& block_contents,
                                  BlockHandle* handle) {
   Rep* r = rep_;
   handle->set_offset(r->offset);
+  // set_size的是block_contents的源大小，不包括接下来追加的trailer.
   handle->set_size(block_contents.size());
   //先写block contents
   r->status = r->file->Append(block_contents);

@@ -217,6 +217,8 @@ class LEVELDB_EXPORT RandomAccessFile {
   // status.
   //
   // Safe for concurrent use by multiple threads.
+  // 从文件的offset处，读取至多n个字节，读取结果存储到*result
+  // 存储空间由调用方管理，通过scratch传入
   virtual Status Read(uint64_t offset, size_t n, Slice* result,
                       char* scratch) const = 0;
 };
