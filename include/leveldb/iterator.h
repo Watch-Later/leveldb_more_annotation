@@ -61,6 +61,7 @@ class LEVELDB_EXPORT Iterator {
   // the returned slice is valid only until the next modification of
   // the iterator.
   // REQUIRES: Valid()
+  // 同一个类函数命名方式不一样？
   virtual Slice key() const = 0;
 
   // Return the value for the current entry.  The underlying storage for

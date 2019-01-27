@@ -89,7 +89,9 @@ TwoLevelIterator::~TwoLevelIterator() {
 }
 
 void TwoLevelIterator::Seek(const Slice& target) {
+  // 先在 index block 找到第一个>= target 的k:v, v是某个data_block的size&offset
   index_iter_.Seek(target);
+  // 根据v读取data_block，data_iter_指向该data_block内的k:v
   InitDataBlock();
   if (data_iter_.iter() != nullptr) data_iter_.Seek(target);
   SkipEmptyDataBlocksForward();
@@ -162,7 +164,9 @@ void TwoLevelIterator::InitDataBlock() {
       // data_iter_ is already constructed with this iterator, so
       // no need to change anything
     } else {
+      // 返回该data block对应的iterator
       Iterator* iter = (*block_function_)(arg_, options_, handle);
+      // 记录block的size&offset
       data_block_handle_.assign(handle.data(), handle.size());
       SetDataIterator(iter);
     }

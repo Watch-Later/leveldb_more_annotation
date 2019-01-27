@@ -58,3 +58,6 @@ bloom_test:bloom_test.cpp
 
 filter_block_test:filter_block_test.cpp
 	$(CXX) -o $@ $< $(LIBS) $(CPPFLAGS) $(LDFLAGS)
+
+table_test:table_test.cpp
+	$(CXX) -o $@ $< $(LIBS) $(CPPFLAGS) $(LDFLAGS)

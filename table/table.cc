@@ -46,17 +46,19 @@ Status Table::Open(const Options& options,
 
   char footer_space[Footer::kEncodedLength];
   Slice footer_input;
-  //读取footer: 最后kEncodedLength个字节
+  //读取最后kEncodedLength个字节，即Footer大小，存储到footer_input
   Status s = file->Read(size - Footer::kEncodedLength, Footer::kEncodedLength,
                         &footer_input, footer_space);
   if (!s.ok()) return s;
 
   Footer footer;
+  //从footer_input解析出footer
   s = footer.DecodeFrom(&footer_input);
   if (!s.ok()) return s;
 
   // Read the index block
-  // 读取index block，内容存储到index_block_contents
+  // footer里存储了index block的offset&size，即index_handle
+  // 读取对应的内容，内容存储到index_block_contents
   BlockContents index_block_contents;
   if (s.ok()) {
     ReadOptions opt;
@@ -69,6 +71,7 @@ Status Table::Open(const Options& options,
   if (s.ok()) {
     // We've successfully read the footer and the index block: we're
     // ready to serve requests.
+    // 根据index_block_contents解析出index_block
     Block* index_block = new Block(index_block_contents);
     Rep* rep = new Table::Rep;
     rep->options = options;
@@ -98,17 +101,20 @@ void Table::ReadMeta(const Footer& footer) {
     opt.verify_checksums = true;
   }
   BlockContents contents;
+  //读取metaindex_handle指向的内容，即metaindex_block，存储到contents
   if (!ReadBlock(rep_->file, opt, footer.metaindex_handle(), &contents).ok()) {
     // Do not propagate errors since meta info is not needed for operation
     return;
   }
   Block* meta = new Block(contents);
 
+  //metaindex_block存储了filter_block的信息：key=filter.${FilterName}, value=size&offset of filter_block
   Iterator* iter = meta->NewIterator(BytewiseComparator());
   std::string key = "filter.";
   key.append(rep_->options.filter_policy->Name());
   iter->Seek(key);
   if (iter->Valid() && iter->key() == Slice(key)) {
+    //iter->value()即filter_blcok的size&offset
     ReadFilter(iter->value());
   }
   delete iter;
@@ -129,12 +135,14 @@ void Table::ReadFilter(const Slice& filter_handle_value) {
     opt.verify_checksums = true;
   }
   BlockContents block;
+  //读取filter_handle指向的内容，即filter_block，存储到block
   if (!ReadBlock(rep_->file, opt, filter_handle, &block).ok()) {
     return;
   }
   if (block.heap_allocated) {
     rep_->filter_data = block.data.data();     // Will need to delete later
   }
+  //根据block内的数据构造FilterBlockReader
   rep_->filter = new FilterBlockReader(rep_->options.filter_policy, block.data);
 }
 
@@ -167,7 +175,8 @@ Iterator* Table::BlockReader(void* arg,
   Block* block = nullptr;
   Cache::Handle* cache_handle = nullptr;
 
-  BlockHandle handle;//block的offset 和 size
+  //index_value记录了block的offset&size序列化后的值，反序列化的结果存储到handle
+  BlockHandle handle;
   Slice input = index_value;
   Status s = handle.DecodeFrom(&input);
   // We intentionally allow extra stuff in index_value so that we
@@ -218,6 +227,7 @@ Iterator* Table::BlockReader(void* arg,
 
 Iterator* Table::NewIterator(const ReadOptions& options) const {
   return NewTwoLevelIterator(
+      //传入index_block的iterator
       rep_->index_block->NewIterator(rep_->options.comparator),
       &Table::BlockReader, const_cast<Table*>(this), options);
 }
