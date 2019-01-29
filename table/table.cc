@@ -40,6 +40,7 @@ Status Table::Open(const Options& options,
                    uint64_t size,
                    Table** table) {
   *table = nullptr;
+  //Footer采用固定长度编码，文件小于这个长度就直接忽略了
   if (size < Footer::kEncodedLength) {
     return Status::Corruption("file is too short to be an sstable");
   }
@@ -82,6 +83,7 @@ Status Table::Open(const Options& options,
     rep->filter_data = nullptr;
     rep->filter = nullptr;
     *table = new Table(rep);
+    // 读取filter数据
     (*table)->ReadMeta(footer);
   }
 

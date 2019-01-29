@@ -43,7 +43,6 @@ void scan_by_table_iterator() {
 }
 
 int main() {
-    // write_db();
     scan_by_table_iterator();
 
     return 0;

@@ -109,7 +109,7 @@ void TableBuilder::Add(const Slice& key, const Slice& value) {
   //刚写入了一个data block后设置为true
   if (r->pending_index_entry) {
     assert(r->data_block.empty());
-    //计算满足>r->last_key && <= key的第一个字符串，存储到r->last_key
+    //计算满足>=r->last_key && < key的第一个字符串，存储到r->last_key
     //例如(abcdefg, abcdxyz) -> 1st_arg = abcdf
     r->options.comparator->FindShortestSeparator(&r->last_key, key);
     std::string handle_encoding;
