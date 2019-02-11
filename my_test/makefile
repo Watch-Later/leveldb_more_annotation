@@ -61,3 +61,6 @@ filter_block_test:filter_block_test.cpp
 
 table_test:table_test.cpp
 	$(CXX) -o $@ $< $(LIBS) $(CPPFLAGS) $(LDFLAGS)
+
+cache_test:cache_test.cpp
+	$(CXX) -o $@ $< $(LIBS) $(CPPFLAGS) $(LDFLAGS)

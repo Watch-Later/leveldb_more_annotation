@@ -46,6 +46,7 @@ Status BuildTable(const std::string& dbname,
     }
 
     // Finish and check for builder errors
+    // Finish写入meta index block && meta block && index block && footer
     s = builder->Finish();
     if (s.ok()) {
       meta->file_size = builder->FileSize();
