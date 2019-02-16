@@ -79,7 +79,7 @@ Status Table::Open(const Options& options,
     rep->file = file;
     rep->metaindex_handle = footer.metaindex_handle();
     rep->index_block = index_block;
-    rep->cache_id = (options.block_cache ? options.block_cache->NewId() : 0);
+    rep->cache_id = (options.block_cache ? options.block_cache->NewId() : 0);//获取一个全局唯一的ID
     rep->filter_data = nullptr;
     rep->filter = nullptr;
     *table = new Table(rep);
@@ -187,6 +187,10 @@ Iterator* Table::BlockReader(void* arg,
   if (s.ok()) {
     BlockContents contents;
     if (block_cache != nullptr) {
+      // cache key = (cache_id + offset)
+      // cache_id不同Table间保证唯一
+      // 同一Table的不同data block有唯一的offset
+      // 因此可以作为cache key.
       char cache_key_buffer[16];
       EncodeFixed64(cache_key_buffer, table->rep_->cache_id);
       EncodeFixed64(cache_key_buffer+8, handle.offset());
@@ -198,7 +202,7 @@ Iterator* Table::BlockReader(void* arg,
         s = ReadBlock(table->rep_->file, options, handle, &contents);
         if (s.ok()) {
           block = new Block(contents);
-          if (contents.cachable && options.fill_cache) {
+          if (contents.cachable && options.fill_cache) {//本次DB::Get结果是否充缓存
             cache_handle = block_cache->Insert(
                 key, block, block->size(), &DeleteCachedBlock);
           }

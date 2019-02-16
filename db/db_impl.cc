@@ -99,7 +99,7 @@ Options SanitizeOptions(const std::string& dbname,
   ClipToRange(&result.max_open_files,    64 + kNumNonTableCacheFiles, 50000);
   ClipToRange(&result.write_buffer_size, 64<<10,                      1<<30);
   ClipToRange(&result.max_file_size,     1<<20,                       1<<30);
-  ClipToRange(&result.block_size,        1<<10,                       4<<20);
+  ClipToRange(&result.block_size,        1<<10,                       4<<20);//block在1K~4M之间，默认是4K
   if (result.info_log == nullptr) {
     // Open a log file in the same directory as the db
     src.env->CreateDir(dbname);  // In case it does not exist
@@ -111,6 +111,7 @@ Options SanitizeOptions(const std::string& dbname,
     }
   }
   if (result.block_cache == nullptr) {
+    // 默认缓存大小为8M
     result.block_cache = NewLRUCache(8 << 20);
   }
   return result;
