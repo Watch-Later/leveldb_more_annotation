@@ -97,7 +97,7 @@ Options SanitizeOptions(const std::string& dbname,
   result.comparator = icmp;
   result.filter_policy = (src.filter_policy != nullptr) ? ipolicy : nullptr;
   ClipToRange(&result.max_open_files,    64 + kNumNonTableCacheFiles, 50000);
-  ClipToRange(&result.write_buffer_size, 64<<10,                      1<<30);
+  ClipToRange(&result.write_buffer_size, 64<<10,                      1<<30);//6K~1G
   ClipToRange(&result.max_file_size,     1<<20,                       1<<30);
   ClipToRange(&result.block_size,        1<<10,                       4<<20);//block在1K~4M之间，默认是4K
   if (result.info_log == nullptr) {
@@ -119,6 +119,7 @@ Options SanitizeOptions(const std::string& dbname,
 
 static int TableCacheSize(const Options& sanitized_options) {
   // Reserve ten files or so for other uses and give the rest to TableCache.
+  // max_open_files默认1000
   return sanitized_options.max_open_files - kNumNonTableCacheFiles;
 }
 
