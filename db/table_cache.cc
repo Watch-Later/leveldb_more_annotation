@@ -42,6 +42,9 @@ TableCache::~TableCache() {
   delete cache_;
 }
 
+//查找file_number对应的sst是否在缓存中，如果存在则直接返回缓存的值
+//否则打开对一个的sst，填充到缓存并且返回
+//handle里存储的对应的value(类型为TableAndFile*)
 Status TableCache::FindTable(uint64_t file_number, uint64_t file_size,
                              Cache::Handle** handle) {
   Status s;
@@ -111,6 +114,7 @@ Status TableCache::Get(const ReadOptions& options,
   Cache::Handle* handle = nullptr;
   Status s = FindTable(file_number, file_size, &handle);
   if (s.ok()) {
+    //file_number对应唯一的sst文件，t用于读取该文件
     Table* t = reinterpret_cast<TableAndFile*>(cache_->Value(handle))->table;
     s = t->InternalGet(options, k, arg, saver);
     cache_->Release(handle);

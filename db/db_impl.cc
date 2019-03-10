@@ -500,7 +500,8 @@ Status DBImpl::RecoverLogFile(uint64_t log_number, bool last_log,
   return status;
 }
 
-//mem持久化到x.ldb，并将该文件记录到edit
+//mem持久化到x.ldb，并将新文件记录到edit
+//注意新文件不一定只在level 0，也可能记录到1 2
 Status DBImpl::WriteLevel0Table(MemTable* mem, VersionEdit* edit,
                                 Version* base) {
   mutex_.AssertHeld();
@@ -535,7 +536,7 @@ Status DBImpl::WriteLevel0Table(MemTable* mem, VersionEdit* edit,
   if (s.ok() && meta.file_size > 0) {
     const Slice min_user_key = meta.smallest.user_key();
     const Slice max_user_key = meta.largest.user_key();
-    //为新生成sstable选择合适的level
+    //为新生成sstable选择合适的level(不一定总是0)
     if (base != nullptr) {
       level = base->PickLevelForMemTableOutput(min_user_key, max_user_key);
     }
@@ -710,13 +711,13 @@ void DBImpl::BackgroundCall() {
 void DBImpl::BackgroundCompaction() {
   mutex_.AssertHeld();
 
-  //先compact immutable memtable，称为Minor Compaction?
+  //如果immutable memtable存在，则本次先compact，即Minor Compaction
   if (imm_ != nullptr) {
     CompactMemTable();
     return;
   }
 
-  //合并文件，称为Major Compaction?
+  //如果immutable memtable不存在，则合并各层level的文件，称为Major Compaction
   Compaction* c;
   bool is_manual = (manual_compaction_ != nullptr);
   InternalKey manual_end;
@@ -735,7 +736,7 @@ void DBImpl::BackgroundCompaction() {
         (m->end ? m->end->DebugString().c_str() : "(end)"),
         (m->done ? "(end)" : manual_end.DebugString().c_str()));
   } else {
-  //自动compact
+  //自动compact，c记录了待参与compact的所有文件
     c = versions_->PickCompaction();
   }
 
@@ -744,6 +745,7 @@ void DBImpl::BackgroundCompaction() {
     // Nothing to do
   } else if (!is_manual && c->IsTrivialMove()) {
     // Move file to next level
+    // level + 1没有overlap的文件，不需要compact，直接从level层标记到level + 1层即可
     assert(c->num_input_files(0) == 1);
     FileMetaData* f = c->input(0, 0);
     //直接把这个文件从level移动level + 1层
@@ -814,6 +816,7 @@ void DBImpl::CleanupCompaction(CompactionState* compact) {
   delete compact;
 }
 
+//new TableBuilder，用于写入compact的数据
 Status DBImpl::OpenCompactionOutputFile(CompactionState* compact) {
   assert(compact != nullptr);
   assert(compact->builder == nullptr);
@@ -914,6 +917,7 @@ Status DBImpl::InstallCompactionResults(CompactionState* compact) {
   return versions_->LogAndApply(compact->compaction->edit(), &mutex_);
 }
 
+//真正的compaction，compact里记录了本次所有参与compact的文件
 Status DBImpl::DoCompactionWork(CompactionState* compact) {
   const uint64_t start_micros = env_->NowMicros();
   int64_t imm_micros = 0;  // Micros spent doing imm_ compactions
@@ -936,7 +940,7 @@ Status DBImpl::DoCompactionWork(CompactionState* compact) {
   // Release mutex while we're actually doing the compaction work
   mutex_.Unlock();
 
-  //input用于遍历compact里所有文件
+  //input用于遍历compact里所有文件的key
   Iterator* input = versions_->MakeInputIterator(compact->compaction);
   input->SeekToFirst();
   Status status;
@@ -944,6 +948,7 @@ Status DBImpl::DoCompactionWork(CompactionState* compact) {
   std::string current_user_key;
   bool has_current_user_key = false;
   SequenceNumber last_sequence_for_key = kMaxSequenceNumber;
+  //从小到大遍历
   for (; input->Valid() && !shutting_down_.Acquire_Load(); ) {
     // Prioritize immutable compaction work
     if (has_imm_.NoBarrier_Load() != nullptr) {
@@ -959,7 +964,8 @@ Status DBImpl::DoCompactionWork(CompactionState* compact) {
     }
 
     Slice key = input->key();
-    //与level + 2层的文件比较
+    //与level + 2层的文件比较，如果目前的compact已经会导致后续level + 1 与 level + 2 compact压力过大
+    //那么结束本次compact
     if (compact->compaction->ShouldStopBefore(key) &&
         compact->builder != nullptr) {
       status = FinishCompactionOutputFile(compact, input);
@@ -970,7 +976,6 @@ Status DBImpl::DoCompactionWork(CompactionState* compact) {
 
     // Handle key/value, add to state, etc.
     bool drop = false;
-    //什么情况下导致key size太小而parse失败？
     if (!ParseInternalKey(key, &ikey)) {
       // Do not hide error keys
       current_user_key.clear();
@@ -992,7 +997,7 @@ Status DBImpl::DoCompactionWork(CompactionState* compact) {
       //有几种情况可以忽略key，在compact时丢弃：
       //1. 对于多次出现的user key，我们只关心最后写入的值 or >snapshot的值
       //   通过设置last_sequence_for_key = kMaxSequenceNumber
-      //   以及跟compact->smallest_snapshot比较，可以保证这点
+      //   以及跟compact->smallest_snapshot比较，可以分别保证这两点
       //2. 如果是删除key && <= snapshot && 更高层没有该key，那么也可以忽略
       if (last_sequence_for_key <= compact->smallest_snapshot) {
         // Hidden by an newer entry for same user key
@@ -1024,6 +1029,7 @@ Status DBImpl::DoCompactionWork(CompactionState* compact) {
 
     if (!drop) {
       // Open output file if necessary
+      // 如果builder为空，则打开文件构造builder，用于数据写入
       if (compact->builder == nullptr) {
         status = OpenCompactionOutputFile(compact);
         if (!status.ok()) {
@@ -1038,7 +1044,8 @@ Status DBImpl::DoCompactionWork(CompactionState* compact) {
 
       // Close output file if it is big enough
       if (compact->builder->FileSize() >=
-          compact->compaction->MaxOutputFileSize()) {//compact的文件超过了大小(默认2M)
+          compact->compaction->MaxOutputFileSize()) {
+        //compact的文件超过了大小(默认2M)，则关闭当前打开的sstable，持久化到磁盘。
         status = FinishCompactionOutputFile(compact, input);
         if (!status.ok()) {
           break;
@@ -1046,7 +1053,7 @@ Status DBImpl::DoCompactionWork(CompactionState* compact) {
       }
     }
 
-    //遍历所有key
+    //继续遍历所有key
     input->Next();
   }
 
@@ -1387,6 +1394,7 @@ WriteBatch* DBImpl::BuildBatchGroup(Writer** last_writer) {
 
 // REQUIRES: mutex_ is held
 // REQUIRES: this thread is currently at the front of the writer queue
+// 正常写入key:value的情况下,force = false
 Status DBImpl::MakeRoomForWrite(bool force) {
   mutex_.AssertHeld();
   assert(!writers_.empty());
@@ -1406,12 +1414,14 @@ Status DBImpl::MakeRoomForWrite(bool force) {
       // individual write by 1ms to reduce latency variance.  Also,
       // this delay hands over some CPU to the compaction thread in
       // case it is sharing the same core as the writer.
+      // 0层文件超过8个，则等待，至多等待一次
       mutex_.Unlock();
       env_->SleepForMicroseconds(1000);
       allow_delay = false;  // Do not delay a single write more than once
       mutex_.Lock();
     } else if (!force &&
-               (mem_->ApproximateMemoryUsage() <= options_.write_buffer_size)) {//不足4M
+               (mem_->ApproximateMemoryUsage() <= options_.write_buffer_size)) {
+      // mem_不足4M，可以继续写入
       // There is room in current memtable
       break;
     } else if (imm_ != nullptr) {
@@ -1422,7 +1432,7 @@ Status DBImpl::MakeRoomForWrite(bool force) {
     } else if (versions_->NumLevelFiles(0) >= config::kL0_StopWritesTrigger) {
       // There are too many level-0 files.
       // level-0文件个数需要控制，避免影响查找速度
-      // 因此>=kL0_StopWritesTrigger，则停止写入
+      // 因此>=12个，则停止写入
       Log(options_.info_log, "Too many L0 files; waiting...\n");
       background_work_finished_signal_.Wait();
     } else {

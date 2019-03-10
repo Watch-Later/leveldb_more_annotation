@@ -48,11 +48,17 @@ void test_block(const std::string block_contents) {
     block_info.heap_allocated = false;
 
     leveldb::Block block(block_info);
+    //block size:70
     std::cout << "block size:" << block.size() << std::endl;
 
     leveldb::Iterator* block_iter = block.NewIterator(options.comparator);
     block_iter->SeekToFirst();
     while (block_iter->Valid()) {
+        //confuse -> value
+        //contend -> value
+        //cope -> value
+        //copy -> value
+        //corn -> value
         std::cout << block_iter->key().ToString()
             << " -> "
             << block_iter->value().ToString()
@@ -61,12 +67,14 @@ void test_block(const std::string block_contents) {
     }
 
     block_iter->Seek("corm");
+    //seek corm       corn -> value
     std::cout << "seek corm\t" << block_iter->key().ToString()
         << " -> "
         << block_iter->value().ToString()
         << std::endl;
 
     block_iter->SeekToLast();
+    //last    corn -> value
     std::cout << "last\t" << block_iter->key().ToString()
         << " -> "
         << block_iter->value().ToString()

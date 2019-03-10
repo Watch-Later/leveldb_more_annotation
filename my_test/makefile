@@ -64,3 +64,6 @@ table_test:table_test.cpp
 
 cache_test:cache_test.cpp
 	$(CXX) -o $@ $< $(LIBS) $(CPPFLAGS) $(LDFLAGS)
+
+manifest_reader_test:manifest_reader_test.cpp
+	$(CXX) -o $@ $< $(LIBS) $(CPPFLAGS) $(LDFLAGS)

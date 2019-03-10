@@ -99,7 +99,8 @@ class VersionEdit {
   bool has_last_sequence_;
 
   std::vector< std::pair<int, InternalKey> > compact_pointers_;
-  DeletedFileSet deleted_files_;
+  DeletedFileSet deleted_files_;//待删除文件
+  //新增文件，例如immutable memtable dump后就会添加到new_files_
   std::vector< std::pair<int, FileMetaData> > new_files_;
 };
 

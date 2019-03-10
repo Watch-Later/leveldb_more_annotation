@@ -66,6 +66,8 @@ Status BuildTable(const std::string& dbname,
 
     if (s.ok()) {
       // Verify that the table is usable
+      // 尝试打开新的文件，添加到table_cache
+      // 即使delete it，也不是真正的从table_cache里清理，因此也能起到预读的作用？
       Iterator* it = table_cache->NewIterator(ReadOptions(),
                                               meta->number,
                                               meta->file_size);

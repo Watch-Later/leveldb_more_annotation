@@ -12,6 +12,7 @@
 namespace leveldb {
 
 // A utility routine: write "data" to the named file and Sync() it.
+// 在fname文件后追加data数据
 Status WriteStringToFileSync(Env* env, const Slice& data,
                              const std::string& fname);
 
@@ -127,6 +128,7 @@ bool ParseFileName(const std::string& filename,
   return true;
 }
 
+//将manifest文件名写入CURRENT文件
 Status SetCurrentFile(Env* env, const std::string& dbname,
                       uint64_t descriptor_number) {
   // Remove leading "dbname/" and add newline to manifest file name
