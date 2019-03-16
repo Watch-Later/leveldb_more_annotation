@@ -1,19 +1,3 @@
-/***************************************************************************
- * 
- * Copyright (c) 2019 Baidu.com, Inc. All Rights Reserved
- * $Id$ 
- * 
- **************************************************************************/
- 
- /**
- * @file my_test/manifest_reader_test.cpp
- * @author zhangying21(zhangying21@baidu.com)
- * @date 2019/03/09 16:42:25
- * @version $Revision$ 
- * @brief 
- *  
- **/
-
 #include <iostream>
 #include "db/log_reader.h"
 #include "db/version_edit.h"
