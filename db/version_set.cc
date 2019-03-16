@@ -546,11 +546,11 @@ bool Version::OverlapInLevel(int level,
                                smallest_user_key, largest_user_key);
 }
 
-//找一个合适的level放置新从memtable dump出的sstable
-//注：不一定总是放到level 0，尽量放到更大的level
-//如果[small, large]与0层，则直接返回0
-//如果与level + 1文件有重叠，或者与level + 2层文件重叠过大，则都不应该放入level + 1，直接返回level
-//返回的level 最大为2
+// 找一个合适的level放置新从memtable dump出的sstable
+// 注：不一定总是放到level 0，尽量放到更大的level
+// 如果[small, large]与0层，则直接返回0
+// 如果与level + 1文件有重叠，或者与level + 2层文件重叠过大，则都不应该放入level + 1，直接返回level
+// 返回的level 最大为2
 int Version::PickLevelForMemTableOutput(
     const Slice& smallest_user_key,
     const Slice& largest_user_key) {
@@ -788,7 +788,7 @@ class VersionSet::Builder {
   }
 
   // Save the current state in *v.
-  // 将edit记录的deleted/added files作用于base，生成新的version v
+  // 将levels_记录的deleted/added files作用于base，生成新的version v
   void SaveTo(Version* v) {
     BySmallestKey cmp;
     cmp.internal_comparator = &vset_->icmp_;
@@ -1004,6 +1004,7 @@ Status VersionSet::Recover(bool *save_manifest) {
   };
 
   // Read "CURRENT" file, which contains a pointer to the current manifest file
+  // 读取CURRENT文件内容到current
   std::string current;
   Status s = ReadFileToString(env_, CurrentFileName(dbname_), &current);
   if (!s.ok()) {
@@ -1014,6 +1015,7 @@ Status VersionSet::Recover(bool *save_manifest) {
   }
   current.resize(current.size() - 1);
 
+  //MANIFEST-xxxxxx 文件
   std::string dscname = dbname_ + "/" + current;
   SequentialFile* file;
   s = env_->NewSequentialFile(dscname, &file);
@@ -1041,6 +1043,7 @@ Status VersionSet::Recover(bool *save_manifest) {
     log::Reader reader(file, &reporter, true/*checksum*/, 0/*initial_offset*/);
     Slice record;
     std::string scratch;
+    //读取MANIFEST文件
     while (reader.ReadRecord(&record, &scratch) && s.ok()) {
       VersionEdit edit;
       s = edit.DecodeFrom(record);

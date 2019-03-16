@@ -518,6 +518,7 @@ Status DBImpl::WriteLevel0Table(MemTable* mem, VersionEdit* edit,
   {
     mutex_.Unlock();
     //更新memtable中全部数据到xxx.ldb文件
+    //meta记录key range, file_size等sst信息
     s = BuildTable(dbname_, env_, options_, table_cache_, iter, &meta);
     mutex_.Lock();
   }
@@ -1453,7 +1454,7 @@ Status DBImpl::MakeRoomForWrite(bool force) {
       log_ = new log::Writer(lfile);
       imm_ = mem_;//mem_大小超过4M，因此转化为imm_
       has_imm_.Release_Store(imm_);
-      mem_ = new MemTable(internal_comparator_);
+      mem_ = new MemTable(internal_comparator_);//重新new一个新的mem_供更新
       mem_->Ref();
       force = false;   // Do not force another compaction if have room
       MaybeScheduleCompaction();
