@@ -1279,7 +1279,6 @@ Status DBImpl::Write(const WriteOptions& options, WriteBatch* my_batch) {
   if (status.ok() && my_batch != nullptr) {  // nullptr batch is for compactions
     //updates存储合并后的所有WriteBatch
     WriteBatch* updates = BuildBatchGroup(&last_writer);
-    //这两句说明所有操作都有不同Sequence?
     WriteBatchInternal::SetSequence(updates, last_sequence + 1);
     last_sequence += WriteBatchInternal::Count(updates);
 

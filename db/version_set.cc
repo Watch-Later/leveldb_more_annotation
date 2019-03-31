@@ -34,7 +34,7 @@ static int64_t MaxGrandParentOverlapBytes(const Options* options) {
 // the lower level file set of a compaction if it would make the
 // total compaction cover more than this many bytes.
 static int64_t ExpandedCompactionByteSizeLimit(const Options* options) {
-  return 25 * TargetFileSize(options);//25M
+  return 25 * TargetFileSize(options);//50M
 }
 
 //10**level，即level 1 = 10M, level 2 = 100M, ...
@@ -181,6 +181,9 @@ bool SomeFileOverlapsRange(
 // is the largest key that occurs in the file, and value() is an
 // 16-byte value containing the file number and file size, both
 // encoded using EncodeFixed64.
+// 接收一个有序的文件列表，支持遍历
+// key: 文件的largest key encode 后的值
+// value: 文件的number && size encode 后的值
 class Version::LevelFileNumIterator : public Iterator {
  public:
   LevelFileNumIterator(const InternalKeyComparator& icmp,
@@ -192,6 +195,7 @@ class Version::LevelFileNumIterator : public Iterator {
   virtual bool Valid() const {
     return index_ < flist_->size();
   }
+  //index_指向可能存在 target 的文件
   virtual void Seek(const Slice& target) {
     index_ = FindFile(icmp_, *flist_, target);
   }
@@ -1376,6 +1380,7 @@ Iterator* VersionSet::MakeInputIterator(Compaction* c) {
   // level 0：文件是无序的，有多少个sstable file，就需要多少Iterator
   // level >0：文件是有序的，1个Iterator就可以了
   const int space = (c->level() == 0 ? c->inputs_[0].size() + 1 : 2);
+  // list存储所有Iterator
   Iterator** list = new Iterator*[space];
   int num = 0;
   for (int which = 0; which < 2; which++) {
@@ -1383,6 +1388,7 @@ Iterator* VersionSet::MakeInputIterator(Compaction* c) {
       //第0层
       if (c->level() + which == 0) {
         const std::vector<FileMetaData*>& files = c->inputs_[which];
+        // Iterator* Table::NewIterator
         for (size_t i = 0; i < files.size(); i++) {
           list[num++] = table_cache_->NewIterator(
               options, files[i]->number, files[i]->file_size);
@@ -1390,6 +1396,7 @@ Iterator* VersionSet::MakeInputIterator(Compaction* c) {
       } else {
         // Create concatenating iterator for the files from this level
         list[num++] = NewTwoLevelIterator(
+            // 遍历文件列表的iterator
             new Version::LevelFileNumIterator(icmp_, &c->inputs_[which]),
             &GetFileIterator, table_cache_, options);
       }
@@ -1456,7 +1463,7 @@ Compaction* VersionSet::PickCompaction() {
     assert(!c->inputs_[0].empty());
   }
 
-  //此时c->inputs_[0]只有一个文件
+  //此时c->inputs_[0]记录了要参与 compact 的第一层文件
   SetupOtherInputs(c);
 
   return c;
