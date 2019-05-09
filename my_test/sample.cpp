@@ -39,6 +39,8 @@ int main() {
 
     db->Put(leveldb::WriteOptions(), "name", "Jeff Dean");
     db->Put(leveldb::WriteOptions(), "company", "Google");
+    status = db->Get(read_options, "name", &db_value);
+    std::cout << "Get snapshot: " << "name" << " status:" << status.ToString() << std::endl;
 
     //遍历
     {

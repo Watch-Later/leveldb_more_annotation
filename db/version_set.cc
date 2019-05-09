@@ -1655,7 +1655,7 @@ bool Compaction::IsBaseLevelForKey(const Slice& user_key) {
 //如果当前compact的key(internal_key)已经比grandparents_的文件大很多(25M)
 //就意味着已经compact的数据存放到level + 1后，level+2层的这些文件都会参与compact
 //compact时压力已经很大，因此返回true
-//注：如果level的第一个key已经满足该条件，那么就会错误的判断提前终止（本次compact还未merge任何数据）
+//注：如果level的第一个文件里的key已经满足该条件，那么就会错误的判断提前终止（本次compact还未merge任何数据）
 //举个例子：
 //level     : [g, m]
 //level + 1 : [a, h], [i, n]
